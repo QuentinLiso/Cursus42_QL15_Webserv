@@ -11,7 +11,7 @@
 /* ************************************************************************** */
 
 #ifndef MYSERVER_HPP
-# define MYSERV_HPP
+# define MYSERVER_HPP
 
 # include <vector>
 # include <map>
