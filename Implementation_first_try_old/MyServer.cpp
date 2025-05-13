@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/01 13:02:42 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/08 09:41:21 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/13 10:51:25 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -110,12 +110,12 @@ int    MyServer::_handleBytesRead(int fd, char buffer[], ssize_t bytesRead)
         MyClientConnection& client = it->second;
         client.appendToBuffer(buffer, bytesRead);
         client.checkRequestCompletion();
-        if (client.isRequestComplete())
-        {
+        // if (client.isRequestComplete())
+        // {
             std::cout << "Received from client: " << client.getRequestBuffer() << std::endl;
             client.clearBuffer();
             return (0);
-        }
+        // }
     }
     else
     {
