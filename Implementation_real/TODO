@@ -1,10 +1,4 @@
 REGEX documentation
-Location block directives + constructors
-root OK
-alias OK
-index OK
-autoindex OK
-allow OK
-cgi_pass OK
-client_max_body_size OK
+Validation step with IP/Host as discussed with ChatGPT
+Define a std::map inside my config (maybe use a typedef if possible lol)
 

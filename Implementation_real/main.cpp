@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/09 19:32:00 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/13 10:34:11 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/13 18:12:58 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -386,7 +386,7 @@ struct	ServerConfig;
 
 struct	LocationConfig
 {
-	ServerConfig*				serverConfig;			// Location block specific
+	// ServerConfig*				serverConfig;			// Location block specific
 	std::string					pathModifier;			// Location block specific
 	std::string					path;					// Location block specific
 	std::string					root;					// Allowed in both server and location block
@@ -419,9 +419,8 @@ struct	ServerConfig
 class	ServerConfigSetter
 {
 private:
-	ServerConfig	_config;
 
-	long	strToVal(const std::string& val)
+	static long	strToVal(const std::string& val)
 	{
 		if (val.empty())
 			return (-1);
@@ -432,7 +431,7 @@ private:
 		return (l);
 	}
 
-	int		isValidPort(const std::string& port)
+	static int		isValidPort(const std::string& port)
 	{
 		long	result = strToVal(port);
 		if (result < 1 || result > 65535)
@@ -440,7 +439,7 @@ private:
 		return (static_cast<int>(result));
 	}
 	
-	std::string	isValidIp(const std::string& ip)
+	static std::string	isValidIp(const std::string& ip)
 	{
 		if (ip == "localhost")
 			return ("127.0.0.1");
@@ -456,7 +455,7 @@ private:
 		return (ip);
 	}
 
-	void	makeHostAndPort(const Directive* directive, ServerConfig& config)
+	static void	makeHostAndPort(const Directive* directive, ServerConfig& config)
 	{
 		if (directive->arguments.size() != 1 || config.port != -1)
 			throw std::runtime_error("Host error or doublon listen");
@@ -475,7 +474,7 @@ private:
 		}
 	}
 
-	void	makeServerName(const Directive* directive, ServerConfig& config)
+	static void	makeServerName(const Directive* directive, ServerConfig& config)
 	{
 		std::vector<std::string>	args = directive->arguments;
 		if (args.size() == 0)
@@ -492,7 +491,7 @@ private:
 		}
 	}
 	
-	void	makeServerRoot(const Directive* directive, ServerConfig& config)
+	static void	makeServerRoot(const Directive* directive, ServerConfig& config)
 	{
 		std::vector<std::string>	args = directive->arguments;
 		if (args.size() != 1 || args[0].empty())
@@ -503,7 +502,7 @@ private:
 	}
 
 	template <typename T>
-	void	makeIndex(const Directive* directive, T& config)
+	static void	makeIndex(const Directive* directive, T& config)
 	{
 		std::vector<std::string>	args = directive->arguments;
 		if (args.size() == 0)
@@ -521,7 +520,7 @@ private:
 	}
 
 	template <typename T>
-	void	makeAutoIndex(const Directive* directive, T& config)
+	static void	makeAutoIndex(const Directive* directive, T& config)
 	{
 		std::vector<std::string>	args = directive->arguments;
 		if (args.size() != 1)
@@ -542,7 +541,7 @@ private:
 			throw std::runtime_error("Invalid arguments in autoindex directive : only 'on' and 'off' allowed");		
 	}
 
-	bool	isValidErrorUri(const std::string& uri)
+	static bool	isValidErrorUri(const std::string& uri)
 	{
 		std::string	http = "http://";
 		std::string https = "https://";
@@ -559,7 +558,7 @@ private:
 	}
 
 	template <typename T>
-	void	makeErrorPages(const Directive* directive, T& config)
+	static void	makeErrorPages(const Directive* directive, T& config)
 	{
 		std::vector<std::string>	args = directive->arguments;
 		
@@ -580,7 +579,7 @@ private:
 		}
 	}
 
-	size_t	strToValBytes(std::string const& val)
+	static size_t	strToValBytes(std::string const& val)
 	{
 		char*	end;
 
@@ -600,7 +599,7 @@ private:
 	}
 
 	template < typename T >
-	void	makeClientMaxBodySize(const Directive* directive, T& config)
+	static void	makeClientMaxBodySize(const Directive* directive, T& config)
 	{
 		std::vector<std::string>	args = directive->arguments;
 
@@ -615,7 +614,7 @@ private:
 		config.clientMaxBodySize.second = bytes;
 	}
 
-	void	parseServerDirective(const Directive* directive, ServerConfig& config)
+	static void	parseServerDirective(const Directive* directive, ServerConfig& config)
 	{
 		if (directive->name == "listen")
 			makeHostAndPort(directive, config);
@@ -636,7 +635,7 @@ private:
 		// std::cout << "Directive " + directive->name + " added to the server config" << std::endl;
 	}
 	
-	void	makeLocationRoot(const Directive* directive, LocationConfig& config)
+	static void	makeLocationRoot(const Directive* directive, LocationConfig& config)
 	{
 		std::vector<std::string>	args = directive->arguments;
 		if (args.size() != 1 || args[0].empty())
@@ -648,7 +647,7 @@ private:
 		config.root = args[0];
 	}
 
-	void	makeLocationAlias(const Directive* directive, LocationConfig& config)
+	static void	makeLocationAlias(const Directive* directive, LocationConfig& config)
 	{
 		std::vector<std::string>	args = directive->arguments;
 		if (args.size() != 1 || args[0].empty())
@@ -658,7 +657,7 @@ private:
 		config.alias = args[0];
 	}
 
-	void	makeAllowedMethods(const Directive* directive, LocationConfig& config)
+	static void	makeAllowedMethods(const Directive* directive, LocationConfig& config)
 	{
 		std::vector<std::string>	args = directive->arguments;
 	
@@ -679,7 +678,7 @@ private:
 		}
 	}
 
-	void	makeCgiPass(const Directive* directive, LocationConfig& config)
+	static void	makeCgiPass(const Directive* directive, LocationConfig& config)
 	{
 		std::vector<std::string>	args = directive->arguments;
 
@@ -690,7 +689,7 @@ private:
 		config.cgiPass = args[0];
 	}
 
-	void	parseLocationDirective(const Directive* directive, LocationConfig& config)
+	static void	parseLocationDirective(const Directive* directive, LocationConfig& config)
 	{
 		if(directive->name == "root")
 			makeLocationRoot(directive, config);
@@ -712,7 +711,7 @@ private:
 		// std::cout << "Directive " + directive->name + " added to the location config" << std::endl;
 	}
 
-	void	parseLocationBlockArgs(const Block* block, LocationConfig& locConfig)
+	static void	parseLocationBlockArgs(const Block* block, LocationConfig& locConfig)
 	{
 		std::vector<std::string>	args = block->arguments;
 		
@@ -738,29 +737,29 @@ private:
 	
 	}
 
-	void	inheritanceLocationBlock(LocationConfig& locConfig)
+	static void	inheritanceLocationBlock(LocationConfig& locConfig, ServerConfig& serverConfig)
 	{
-		if (locConfig.serverConfig == NULL)
-			return ;
-		ServerConfig*	serverConfig = locConfig.serverConfig;
+		// if (locConfig.serverConfig == NULL)
+		// 	return ;
+		// ServerConfig*	serverConfig = locConfig.serverConfig;
 
 		if (locConfig.root.empty() && locConfig.alias.empty())
-			locConfig.root = serverConfig->root;
+			locConfig.root = serverConfig.root;
 		if (locConfig.index.empty())
-			locConfig.index = serverConfig->index;
+			locConfig.index = serverConfig.index;
 		if (locConfig.autoindex.first == false)
-			locConfig.autoindex = serverConfig->autoindex;
+			locConfig.autoindex = serverConfig.autoindex;
 		if (locConfig.errorPages.empty())
-			locConfig.errorPages = serverConfig->errorPages;
+			locConfig.errorPages = serverConfig.errorPages;
 		if (locConfig.clientMaxBodySize.first == false)
-			locConfig.clientMaxBodySize = serverConfig->clientMaxBodySize;
+			locConfig.clientMaxBodySize = serverConfig.clientMaxBodySize;
 	}
 
-	void	parseLocationBlock(const Block* block, ServerConfig& config)
+	static void	parseLocationBlock(const Block* block, ServerConfig& config)
 	{
 		LocationConfig	locConfig;
 		
-		locConfig.serverConfig = &config;
+		// locConfig.serverConfig = &config;
 		parseLocationBlockArgs(block, locConfig);
 		for (size_t i = 0; i < block->children.size(); i++)
 		{
@@ -774,36 +773,16 @@ private:
 				throw std::runtime_error("Dynamic cast childDirective failed");
 			parseLocationDirective(childDirective, locConfig);
 		}
-		inheritanceLocationBlock(locConfig);
+		inheritanceLocationBlock(locConfig, config);
 		config.locations.push_back(locConfig);
 		// std::cout << "Location block added to the server config" << std::endl;
 	}
 
 public:
-	ServerConfigSetter(void) {}
-	~ServerConfigSetter(void) {}
-
-	// To add in config manager later
-	// void	loadFromAst(const std::vector<IConfigNode*>& ast)
-	// {
-	// 	for (std::vector<IConfigNode*>::const_iterator it = ast.begin(); it != ast.end(); it++)
-	// 	{
-	// 		if ((*it)->isBlock())
-	// 		{
-	// 			Block*	block = dynamic_cast<Block*>(*it);
-	// 			if (!block)
-	// 				throw std::runtime_error("Dynamic cast to block failed");
-	// 			if (block->name != "server")
-	// 				throw std::runtime_error("Expected 'server' block at top level");
-	// 			parseServerBlock(block);
-	// 			continue ;
-	// 		}
-	// 		throw std::runtime_error("Unrecognized server block at top ast level");
-	// 	}
-	// }
-	
-	void	parseServerBlock(const Block* block)
+	static ServerConfig	parseServerBlock(const Block* block)
 	{
+		ServerConfig	serverConfig;
+
 		if (block->arguments.size() != 0)
 			throw std::runtime_error("Server block cannot have arguments");
 		for (size_t i = 0; i < block->children.size(); i++)
@@ -817,20 +796,19 @@ public:
 					throw std::runtime_error("Dynamic cast childBlock failed");
 				if (childBlock->name != "location")
 					throw std::runtime_error("Unrecognized location block inside server");
-				parseLocationBlock(childBlock, _config);
+				parseLocationBlock(childBlock, serverConfig);
 				continue ;
 			}
 			Directive*	childDirective = dynamic_cast<Directive*>(child);
 			if (!childDirective)
 				throw std::runtime_error("Dynamic cast childDirective failed");
-			parseServerDirective(childDirective, _config);
+			parseServerDirective(childDirective, serverConfig);
 		}
+		return (serverConfig);
 		// std::cout << "Server config added to the manager vector of servers" << std::endl;
 	}
 	
-	const	ServerConfig& getServerConfig(void) const { return _config; }
-
-	void	printLocationConfig(const LocationConfig& config, size_t i) const
+	static void	printLocationConfig(const LocationConfig& config, size_t i)
 	{
 		std::cout 	<< "\t****** LOCATION BLOCK " << i << " ******\n" 
 					<< "\tPath modifier : " + config.pathModifier + "\n"
@@ -854,9 +832,9 @@ public:
 					<< "\n" << std::endl;
 	}
 	
-	void	printServerConfig(const ServerConfig& config) const
+	static void	printServerConfig(const ServerConfig& config, size_t i)
 	{
-		std::cout 	<< "****** SERVER BLOCK ******\n" 
+		std::cout 	<< "****** SERVER BLOCK " << i << "******\n" 
 					<< "Host : " + config.host + "\n"
 					<< "Port : " << config.port << "\n"
 					<< "Server name : ";
@@ -877,19 +855,52 @@ public:
 			printLocationConfig(config.locations[i], i);
 		std::cout	<< "\n" << std::endl;
 	}
-
-	
 };
 
-class	ServerConfigValidator
+
+class	ConfigBuilder
 {
 private:
+	std::vector<ServerConfig>	_servers;
+
 	void	validateServerConfig(const ServerConfig& config) {}
 	void	validateLocationConfig(const LocationConfig& config) {}
 
-public:
-	
+	void	loadFromAst(const std::vector<IConfigNode*>& ast)
+	{
+		for (std::vector<IConfigNode*>::const_iterator it = ast.begin(); it != ast.end(); it++)
+		{
+			
+			if ((*it)->isBlock())
+			{
+				Block*	block = dynamic_cast<Block*>(*it);
+				if (!block)
+					throw std::runtime_error("Dynamic cast to block failed");
+				if (block->name != "server")
+					throw std::runtime_error("Expected 'server' block at top level");
+				_servers.push_back(ServerConfigSetter::parseServerBlock(block));
+				continue ;
+			}
+			throw std::runtime_error("Unrecognized server block at top ast level");
+		}
+	}
 
+
+public:
+	ConfigBuilder(const std::vector<IConfigNode*>& ast)
+	{
+		loadFromAst(ast);
+	}
+
+	~ConfigBuilder(void) {}
+
+	const std::vector<ServerConfig>&	getServers(void) const { return (_servers); }
+
+	void	printConfig(void) const
+	{
+		for (size_t i = 0; i < _servers.size(); i++)
+			ServerConfigSetter::printServerConfig(_servers[i], i);
+	}
 };
 
 
@@ -901,12 +912,9 @@ int main(void)
 	parser.showAst();
 	std::cout << "\n" << std::string(100, '*') << "\n" << std::endl;
 
-	ServerConfigSetter	config;
-	config.parseServerBlock(dynamic_cast<Block*>(parser.getAst()[0]));
-	ServerConfig	serverConfig = config.getServerConfig();
+	ConfigBuilder	config(parser.getAst());
+	config.printConfig();
 	std::cout << "\n" << std::string(100, '*') << "\n" << std::endl;
-	
-	config.printServerConfig(serverConfig);
-    
+	    
 	return (0);
 }
