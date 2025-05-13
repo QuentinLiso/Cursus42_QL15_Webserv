@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/09 19:32:00 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/13 09:27:04 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/13 09:40:45 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -421,7 +421,7 @@ class	ServerConfigSetter
 private:
 	ServerConfig	_config;
 
-	int		strToVal(const std::string& val)
+	long	strToVal(const std::string& val)
 	{
 		if (val.empty())
 			return (-1);
@@ -429,15 +429,15 @@ private:
 		long	l = strtol(val.c_str(), &end, 10);
 		if (*end != '\0' || l < 0)
 			return (-1);
-		return (static_cast<int>(l));
+		return (l);
 	}
 
 	int		isValidPort(const std::string& port)
 	{
-		int		result = strToVal(port);
+		long	result = strToVal(port);
 		if (result < 0 || result > 65535)
 			throw std::runtime_error("Invalid port : " + port);
-		return (result);
+		return (static_cast<int>(result));
 	}
 	
 	std::string	isValidIp(const std::string& ip)
