@@ -6,11 +6,17 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/01 13:02:42 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/13 10:43:55 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/08 09:41:21 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "MyServer.hpp"
+
+
+/*********************
+    PRIVATE FUNCTIONS
+**********************/
+
 
 void    MyServer::_init(void)
 {
@@ -67,43 +73,61 @@ void    MyServer::_handleClientActivity(size_t index)
 {
     char    buffer[1024];
     int     fd = _fds[index].fd;
+    ssize_t bytesRead = 1;
 
-    ssize_t	bytesRead = recv(fd, buffer, sizeof(buffer) - 1, 0);
-	if (bytesRead == 0)
-	{
-		std::cout << "Client disconnected on fd " << fd << std::endl;
-		close(fd);
-		_fds.erase(_fds.begin() + index);
-        _clients.erase(fd);
-	}
-	else if (bytesRead < 0)
-	{
-		std::cerr << "recv failed" << std::endl;
-		close(fd);
-		_fds.erase(_fds.begin() + index);
-        _clients.erase(fd);
-	}
-	else
-	{
-		buffer[bytesRead] = '\0';
-        std::map<int, MyClientConnection>::iterator   it = _clients.find(fd);
-        if (it != _clients.end())
+    while (bytesRead > 0)
+    {
+        bytesRead = recv(fd, buffer, sizeof(buffer) - 1, 0);
+        if (bytesRead == 0)
         {
-            std::cout << "coucou" << std::endl;
-            MyClientConnection& client = it->second;
-            client.appendToBuffer(buffer, bytesRead);
-            client.checkRequestCompletion();
-            if (client.isRequestComplete())
-            {
-                std::cout << "Received from client: " << client.getRequestBuffer() << std::endl;
-            }
+            _handleNoByteRead(fd, index, "Client disconnected");
+        }
+        else if (bytesRead < 0)
+        {
+            _handleNoByteRead(fd, index, "recv failed");
         }
         else
         {
-            std::cerr << "Client fd " << fd << " was not found in server clients list." << std::endl;
+            buffer[bytesRead] = '\0';
+            _handleBytesRead(fd, buffer, bytesRead);
         }
-	}
+    }
 }
+
+void    MyServer::_handleNoByteRead(int fd, size_t index, const std::string& msg)
+{
+    std::cout << "FD " << fd << ": " << msg << std::endl;
+    close(fd);
+    _fds.erase(_fds.begin() + index);
+    _clients.erase(fd);
+}
+
+int    MyServer::_handleBytesRead(int fd, char buffer[], ssize_t bytesRead)
+{
+    std::map<int, MyClientConnection>::iterator   it = _clients.find(fd);
+    if (it != _clients.end())
+    {
+        MyClientConnection& client = it->second;
+        client.appendToBuffer(buffer, bytesRead);
+        client.checkRequestCompletion();
+        if (client.isRequestComplete())
+        {
+            std::cout << "Received from client: " << client.getRequestBuffer() << std::endl;
+            client.clearBuffer();
+            return (0);
+        }
+    }
+    else
+    {
+        std::cerr << "Client fd " << fd << " was not found in server clients list." << std::endl;
+    }
+    return (1);
+}
+
+
+/*********************
+    PUBLIC FUNCTIONS
+**********************/
 
 MyServer::MyServer(const std::vector<std::string>& ports) : _ports(ports)
 {
@@ -118,6 +142,6 @@ MyServer::~MyServer(void)
 
 void    MyServer::runServer(void)
 {
-    std::cout << "Server running and waiting for connections on port " << _ports[0] << " ..." << std::endl;
+    std::cout << "Server running and waiting for connections..." << std::endl;
     _mainLoop();
 }
