@@ -1,0 +1,10 @@
+REGEX documentation
+Location block directives + constructors
+root OK
+alias OK
+index OK
+autoindex OK
+allow OK
+cgi_pass OK
+client_max_body_size OK
+

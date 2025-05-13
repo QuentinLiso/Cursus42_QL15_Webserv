@@ -6,16 +6,17 @@
 #    By: qliso <qliso@student.42.fr>                +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/05/07 11:54:51 by mafritz           #+#    #+#              #
-#    Updated: 2025/05/12 10:40:54 by qliso            ###   ########.fr        #
+#    Updated: 2025/05/12 10:46:40 by qliso            ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 NAME = webserv
-SRC = main.cpp MyClientConnection.cpp MyServer.cpp MySocket.cpp 
+#SRC = main.cpp MyClientConnection.cpp MyServer.cpp MySocket.cpp 
+SRC = main.cpp
 OBJ_DIR = obj
 OBJ = $(SRC:%.cpp=$(OBJ_DIR)/%.o)
 CXX = c++
-CXXFLAGS = -Wall -Wextra -Werror -std=c++98
+CXXFLAGS = -Wall -Wextra -Werror -Wno-unused #-std=c++98
 
 all: $(NAME)
 

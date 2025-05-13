@@ -6,13 +6,14 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/09 19:32:00 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/11 23:53:15 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/13 09:27:04 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include <string>
 #include <vector>
 #include <map>
+#include <set>
 #include <exception>
 #include <stdexcept>
 #include <fstream>
@@ -20,6 +21,7 @@
 #include <iostream>
 #include <cstdarg>
 #include <cmath>
+#include <climits>
 
 
 std::vector<std::string>    split(const std::string &str, const std::string& delimiters)
@@ -38,16 +40,29 @@ std::vector<std::string>    split(const std::string &str, const std::string& del
     return (tokens);
 }
 
-enum class  TokenType
+std::string					fileToStr(const std::string& filename)
 {
-	Identifier,
-	Number,
-	StringLiteral,
-	Semicolon,
-	OpenBrace,
-	CloseBrace,
-	EndOfFile,
-	Unknown
+	std::ifstream	file(filename.c_str());
+	std::ostringstream	buffer;
+	
+	if (!file)
+		throw	std::runtime_error("Failed to open file: " + filename);
+	buffer << file.rdbuf();
+	file.close();
+	return (buffer.str());
+}
+
+
+enum  TokenType
+{
+	TO_Identifier,
+	TO_Number,
+	TO_StringLiteral,
+	TO_Semicolon,
+	TO_OpenBrace,
+	TO_CloseBrace,
+	TO_EndOfFile,
+	TO_Unknown
 };	// TokenType
 	
 struct Token
@@ -90,24 +105,7 @@ struct Block : public IConfigNode
     bool    isBlock(void) const { return true; }
 };	// Block
 
-class ConfigFile
-{
-private:
-	std::string	_content;
-	
-public:
-	ConfigFile(const std::string& filename)
-	{
-		std::ifstream	file(filename.c_str());
-		if (!file)
-			throw	std::runtime_error("Failed to open file: " + filename);
-		std::ostringstream	buffer;
-		buffer << file.rdbuf();
-		_content = buffer.str();
-		file.close();
-	}
-	const std::string&	getContent(void) const { return _content; }
-};	// ConfigFile
+
 
 class	Lexer
 {
@@ -159,7 +157,7 @@ private:
 	
 	bool	isIdentifierChar(char c) const
 	{
-		std::string	specials = "_./-$:@^*";
+		std::string	specials = "_./-$:@=~^*\\";
 		return (std::isalnum(c) || specials.find(c) != std::string::npos);
 	}
 
@@ -191,27 +189,27 @@ private:
 		int		startCol = _column;
 
 		if (c == '\0')
-			return (Token(TokenType::EndOfFile, "", startLine, startCol));
+			return (Token(TO_EndOfFile, "", startLine, startCol));
 		
 		if (isIdentifierChar(c))
 		{
-			return (Token(TokenType::Identifier, readIdentifier(), startLine, startCol));
+			return (Token(TO_Identifier, readIdentifier(), startLine, startCol));
 		}
 		if (c == '"' || c == '\'')
 		{
-			return (Token(TokenType::StringLiteral, readQuotedString(c), startLine, startCol));
+			return (Token(TO_StringLiteral, readQuotedString(c), startLine, startCol));
 		}
 		switch(c)
 		{
 			case	'{'	:
 				advanceNextChar();
-				return (Token(TokenType::OpenBrace, "{", startLine, startCol));
+				return (Token(TO_OpenBrace, "{", startLine, startCol));
 			case	'}'	:
 				advanceNextChar();
-				return (Token(TokenType::CloseBrace, "}", startLine, startCol));
+				return (Token(TO_CloseBrace, "}", startLine, startCol));
 			case	';'	:
 				advanceNextChar();
-				return (Token(TokenType::Semicolon, ";", startLine, startCol));
+				return (Token(TO_Semicolon, ";", startLine, startCol));
 			default		:
 				std::ostringstream err;
 				err << "Unexpected character '" << c << "' at line " << _line << ", column " << _column;
@@ -225,15 +223,16 @@ private:
 		{
 			Token toki = getNextToken();
 			_tokens.push_back(toki);
-			if (toki.type == TokenType::EndOfFile)
+			if (toki.type == TO_EndOfFile)
 				break ;
 		}
 	}
 
 public:
-	Lexer(const std::string& input)
-		: _input(input), _index(0), _line(1), _column(1)
+	Lexer(const std::string& filename)
+		: _index(0), _line(1), _column(1)
 	{
+		_input = fileToStr(filename);
 		tokenize();
 	}
 
@@ -249,16 +248,16 @@ private:
 
 	bool	isEofToken(void) const
 	{
-		return (_index >= _tokens.size() || _tokens[_index].type == TokenType::EndOfFile);
+		return (_index >= _tokens.size() || _tokens[_index].type == TO_EndOfFile);
 	}
 
 	Token	setStatement(std::vector<std::string>& args)
 	{
 		Token	statement = _tokens[_index++];
-		while (!isEofToken() && _tokens[_index].type != TokenType::Semicolon && _tokens[_index].type != TokenType::OpenBrace)
+		while (!isEofToken() && _tokens[_index].type != TO_Semicolon && _tokens[_index].type != TO_OpenBrace)
 		{
 			const Token&	current = _tokens[_index];
-			if (current.type != TokenType::Identifier && current.type != TokenType::StringLiteral)
+			if (current.type != TO_Identifier && current.type != TO_StringLiteral)
 				throw std::runtime_error("Not a valid arg token '" + _tokens[_index].value + "'");
 			args.push_back(current.value);
 			_index++;
@@ -268,23 +267,23 @@ private:
 
 	IConfigNode*	buildSingleAst(void)
 	{
-		if (isEofToken() || _tokens[_index].type != TokenType::Identifier)
+		if (isEofToken() || _tokens[_index].type != TO_Identifier)
 			throw std::runtime_error("Not an identifier token");
 		
 		std::vector<std::string>	args;
 		Token						statement = setStatement(args);
 		const Token&				current = _tokens[_index];
 		
-		if (current.type == TokenType::Semicolon)
+		if (current.type == TO_Semicolon)
 		{
 			_index++;
 			return (new Directive(statement.value, args));
 		}
-		else if (current.type == TokenType::OpenBrace)
+		else if (current.type == TO_OpenBrace)
 		{
 			Block	*block = new Block(statement.value, args);
 			_index++;
-			while (!isEofToken() && _tokens[_index].type != TokenType::CloseBrace)
+			while (!isEofToken() && _tokens[_index].type != TO_CloseBrace)
 				block->children.push_back(buildSingleAst());
 			if (isEofToken())
 				throw std::runtime_error("Unclosed bracket");
@@ -372,42 +371,62 @@ public:
 	}
 };
 
+enum	HttpMethods
+{
+	HTTP_GET,
+	HTTP_POST,
+	HTTP_DELETE,
+	HTTP_PUT
+};
+
+
+
+
+struct	ServerConfig;
+
 struct	LocationConfig
 {
-	std::string					path;
-	std::string					root;
-	std::string					index;
-	bool						autoindex;
-	std::vector<std::string>	allowed_methods;
-	std::string					cgi_pass;
-	size_t						client_max_body_size;
+	ServerConfig*				serverConfig;			// Location block specific
+	std::string					pathModifier;			// Location block specific
+	std::string					path;					// Location block specific
+	std::string					root;					// Allowed in both server and location block
+	std::string					alias;					// Location block specific
+	std::vector<std::string>	index;					// Allowed in both server and location block
+	std::pair<bool, bool>		autoindex;				// Allowed in both server and location block
+	std::map<int, std::string>	errorPages;				// Allowed in both server and location block
+	std::pair<bool, size_t>		clientMaxBodySize;		// Allowed in both server and location block
+	std::set<HttpMethods>		allowedMethods;			// Location block specific
+	std::string					cgiPass;				// Location block specific
+
 };
 
 struct	ServerConfig
 {
-	std::string					host;
-	int							port;
-	std::vector<std::string>	server_name;
-	std::string					root;
-	std::vector<std::string>	index;
-	std::map<int, std::string>	error_pages;
-	std::vector<LocationConfig>	locations;
+	std::string					host;						// Server block specific
+	int							port;						// Server block specific
+	std::vector<std::string>	serverName;					// Server block specific
+	std::string					root;						// Allowed in both server and location block
+	std::vector<std::string>	index;						// Allowed in both server and location block
+	std::pair<bool, bool>		autoindex;					// Allowed in both server and location block	
+	std::map<int, std::string>	errorPages;					// Allowed in both server and location block
+	std::pair<bool, size_t>		clientMaxBodySize;			// Allowed in both server and location block
+	std::vector<LocationConfig>	locations;					// Server block specific
 
 	ServerConfig() : host(""), port(-1), root("") {}
 };
 
 
-class	ConfigManager
+class	ServerConfigSetter
 {
 private:
-	std::vector<ServerConfig>	_servers;
+	ServerConfig	_config;
 
 	int		strToVal(const std::string& val)
 	{
 		if (val.empty())
 			return (-1);
 		char*	end;
-		long	l = std::strtol(val.c_str(), &end, 10);
+		long	l = strtol(val.c_str(), &end, 10);
 		if (*end != '\0' || l < 0)
 			return (-1);
 		return (static_cast<int>(l));
@@ -437,7 +456,7 @@ private:
 		return (ip);
 	}
 
-	void	makeHost(const Directive* directive, ServerConfig& config)
+	void	makeHostAndPort(const Directive* directive, ServerConfig& config)
 	{
 		if (directive->arguments.size() != 1 || config.port != -1)
 			throw std::runtime_error("Host error or doublon listen");
@@ -460,15 +479,15 @@ private:
 		std::vector<std::string>	args = directive->arguments;
 		if (args.size() == 0)
 			throw std::runtime_error("Missing arguments in server_name directive");
-		if (config.server_name.size() != 0)
+		if (config.serverName.size() != 0)
 		{
 			std::cout << "WARNING : server_name already populated earlier, overwriting with current server_name" << std::endl;
-			config.server_name.clear();
+			config.serverName.clear();
 		}
 		for (size_t i = 0; i < args.size(); i++)
 		{
 			if (!args[i].empty())
-				config.server_name.push_back(args[i]);
+				config.serverName.push_back(args[i]);
 		}
 	}
 	
@@ -482,7 +501,8 @@ private:
 		config.root = args[0];
 	}
 
-	void	makeIndex(const Directive* directive, ServerConfig& config)
+	template <typename T>
+	void	makeIndex(const Directive* directive, T& config)
 	{
 		std::vector<std::string>	args = directive->arguments;
 		if (args.size() == 0)
@@ -497,6 +517,28 @@ private:
 			if (!args[i].empty())
 				config.index.push_back(args[i]);
 		}
+	}
+
+	template <typename T>
+	void	makeAutoIndex(const Directive* directive, T& config)
+	{
+		std::vector<std::string>	args = directive->arguments;
+		if (args.size() != 1)
+			throw std::runtime_error("Missing arguments in autoindex directive");
+		if (config.autoindex.first == true)
+			throw std::runtime_error("Duplicate autoindex directive found");
+		if (args[0] == "on")
+		{
+			config.autoindex.first = true;
+			config.autoindex.second = true;
+		}
+		else if (args[0] == "off")
+		{
+			config.autoindex.first = true;
+			config.autoindex.second = false;
+		}
+		else
+			throw std::runtime_error("Invalid arguments in autoindex directive : only 'on' and 'off' allowed");		
 	}
 
 	bool	isValidErrorUri(const std::string& uri)
@@ -515,7 +557,8 @@ private:
 		return (false);
 	}
 
-	void	makeErrorPages(const Directive* directive, ServerConfig& config)
+	template <typename T>
+	void	makeErrorPages(const Directive* directive, T& config)
 	{
 		std::vector<std::string>	args = directive->arguments;
 		
@@ -530,62 +573,198 @@ private:
 			int	error = strToVal(args[i]);
 			if (error < 400 || error > 599)
 				throw std::runtime_error("Invalid error code in error_pages directive");
-			if (config.error_pages.find(error) != config.error_pages.end())
+			if (config.errorPages.find(error) != config.errorPages.end())
 				std::cout << "WARNING : Error " << error << " already mapped in error_pages, overwritten by current directive" << std::endl;
-			config.error_pages[error] = args[last];
+			config.errorPages[error] = args[last];
 		}
+	}
+
+	size_t	strToValBytes(std::string const& val)
+	{
+		char*	end;
+
+		size_t	maxMb = 100U;
+		size_t	maxKb = maxMb * 1024U;
+		size_t	maxBytes = maxKb * 1024U;
+		
+		size_t	convert = strtoul(val.c_str(), &end, 10);
+		
+		if (*end == '\0' && convert <= maxBytes)
+			return (convert);
+		else if ((*end == 'k' || *end == 'K') && *(end + 1) == '\0' && convert <= maxKb)
+			return (convert * 1024U);
+		else if ((*end == 'm' || *end == 'M') && *(end + 1) == '\0' && convert <= maxMb)
+			return (convert * 1024U * 1024U);
+		return (ULONG_MAX);
+	}
+
+	template < typename T >
+	void	makeClientMaxBodySize(const Directive* directive, T& config)
+	{
+		std::vector<std::string>	args = directive->arguments;
+
+		if (args.size() != 1)
+			throw std::runtime_error("Missing arguments in client_max_body_size directive");
+		if (config.clientMaxBodySize.first == true)
+			throw std::runtime_error("Duplicate client_max_body_size directive");
+		size_t	bytes = strToValBytes(args[0]);
+		if (bytes == ULONG_MAX)
+			throw std::runtime_error("Invalid value '" + args[0] + "' in client_max_body_size directive");
+		config.clientMaxBodySize.first = true;
+		config.clientMaxBodySize.second = bytes;
 	}
 
 	void	parseServerDirective(const Directive* directive, ServerConfig& config)
 	{
 		if (directive->name == "listen")
-			makeHost(directive, config);
+			makeHostAndPort(directive, config);
 		else if (directive->name == "server_name")
 			makeServerName(directive, config);
 		else if (directive->name == "root")
 			makeServerRoot(directive, config);
 		else if (directive->name == "index")
 			makeIndex(directive, config);
+		else if (directive->name == "autoindex")
+			makeAutoIndex(directive, config);
 		else if (directive->name == "error_page")
 			makeErrorPages(directive, config);
+		else if (directive->name == "client_max_body_size")
+			makeClientMaxBodySize(directive, config);
 		else
 			throw std::runtime_error("Unrecognized directive '" + directive->name + "' in server block");
-		std::cout << "Directive " + directive->name + " added to the server config" << std::endl;
+		// std::cout << "Directive " + directive->name + " added to the server config" << std::endl;
 	}
 	
+	void	makeLocationRoot(const Directive* directive, LocationConfig& config)
+	{
+		std::vector<std::string>	args = directive->arguments;
+		if (args.size() != 1 || args[0].empty())
+			throw std::runtime_error("Missing or invalid argument in root directive");
+		if (!config.alias.empty())
+			throw std::runtime_error("Root directive aborted: Alias directive already defined in the location, cannot have both alias and root in the same location");
+		if (!config.root.empty())
+			std::cout << "WARNING: root already defined earlier, overwriting with current directive" << std::endl;
+		config.root = args[0];
+	}
+
+	void	makeLocationAlias(const Directive* directive, LocationConfig& config)
+	{
+		std::vector<std::string>	args = directive->arguments;
+		if (args.size() != 1 || args[0].empty())
+			throw std::runtime_error("Missing or invalid argument in root directive");
+		if (!config.alias.empty() || !config.root.empty())
+			throw std::runtime_error("Alias directive aborted: Alias or root directive already defined in the location, cannot have both alias and root in the same location");
+		config.alias = args[0];
+	}
+
+	void	makeAllowedMethods(const Directive* directive, LocationConfig& config)
+	{
+		std::vector<std::string>	args = directive->arguments;
+	
+		if (args.size() == 0)
+			throw std::runtime_error("Missing arguments in allowed_methods directive");
+		for (size_t i = 0; i < args.size(); i++)
+		{
+			if (args[i] == "GET")
+				config.allowedMethods.insert(HTTP_GET);
+			else if (args[i] == "PUT")
+				config.allowedMethods.insert(HTTP_PUT);
+			else if (args[i] == "DELETE")
+				config.allowedMethods.insert(HTTP_DELETE);
+			else if (args[i] == "POST")
+				config.allowedMethods.insert(HTTP_POST);
+			else
+				throw std::runtime_error("Invalid argument '" + args[i] + "' in allowed_methods directive");
+		}
+	}
+
+	void	makeCgiPass(const Directive* directive, LocationConfig& config)
+	{
+		std::vector<std::string>	args = directive->arguments;
+
+		if (args.size() != 1 || args[0].empty())
+			throw std::runtime_error("cgi_pass directive should have exactly 1 non-empty argument");
+		if (!config.cgiPass.empty())
+			throw std::runtime_error("Duplicate cgi_pass directive encountered");
+		config.cgiPass = args[0];
+	}
+
 	void	parseLocationDirective(const Directive* directive, LocationConfig& config)
 	{
-		std::cout << "Directive " + directive->name + " added to the location config" << std::endl;
+		if(directive->name == "root")
+			makeLocationRoot(directive, config);
+		else if (directive->name == "alias")
+			makeLocationAlias(directive, config);
+		else if (directive->name == "index")
+			makeIndex(directive, config);
+		else if (directive->name == "autoindex")
+			makeAutoIndex(directive, config);
+		else if (directive->name == "error_page")
+			makeErrorPages(directive, config);
+		else if (directive->name == "client_max_body_size")
+			makeClientMaxBodySize(directive, config);
+		else if (directive->name == "allowed_methods")
+			makeAllowedMethods(directive, config);
+		else if (directive->name == "cgi_pass")
+			makeCgiPass(directive, config);
+
+		// std::cout << "Directive " + directive->name + " added to the location config" << std::endl;
 	}
 
 	void	parseLocationBlockArgs(const Block* block, LocationConfig& locConfig)
 	{
-		// location / {
-		// 	proxy_pass http://localhost:3000;
-		// }
+		std::vector<std::string>	args = block->arguments;
+		
+		switch(args.size())
+		{
+			case 1:
+				if (args[0].empty() || args[0][0] != '/')
+					throw std::runtime_error("Invalid path in location args");
+				locConfig.path = args[0];
+				break;
+			case 2:
+				if (args[0] != "=" && args[0] != "~" && args[0] != "~*" && args[0] != "^~")
+					throw std::runtime_error("Invalid modifier '" + args[0] + "' in location args");
+				if (args[1].empty() || ( (args[1][0] != '/') && (args[0] == "=" || args[0] == "^~") ))
+					throw std::runtime_error("Invalid path in location args");
+				locConfig.path = args[1];
+				locConfig.pathModifier = args[0];
+				break;
+			default:
+				throw std::runtime_error("Invalid args in location block");
+				break;
+		}
+	
+	}
 
-		// location /images/ {
-		// 	root /data;
-		// }
+	void	inheritanceLocationBlock(LocationConfig& locConfig)
+	{
+		if (locConfig.serverConfig == NULL)
+			return ;
+		ServerConfig*	serverConfig = locConfig.serverConfig;
 
-		// location = /favicon.ico {
-		// 	log_not_found off;
-		// }
-
-		// location ~ \.php$ {
-		// 	fastcgi_pass 127.0.0.1:9000;
-		// }	
+		if (locConfig.root.empty() && locConfig.alias.empty())
+			locConfig.root = serverConfig->root;
+		if (locConfig.index.empty())
+			locConfig.index = serverConfig->index;
+		if (locConfig.autoindex.first == false)
+			locConfig.autoindex = serverConfig->autoindex;
+		if (locConfig.errorPages.empty())
+			locConfig.errorPages = serverConfig->errorPages;
+		if (locConfig.clientMaxBodySize.first == false)
+			locConfig.clientMaxBodySize = serverConfig->clientMaxBodySize;
 	}
 
 	void	parseLocationBlock(const Block* block, ServerConfig& config)
 	{
 		LocationConfig	locConfig;
 		
+		locConfig.serverConfig = &config;
 		parseLocationBlockArgs(block, locConfig);
 		for (size_t i = 0; i < block->children.size(); i++)
 		{
 			IConfigNode*	child = block->children[i];
-			std::cout << "Location block children n°" << i << " :\t";
+			// std::cout << "Location block child n°" << i << " :\t";
 			if (child->isBlock())
 				throw std::runtime_error("Block found in location block");
 			
@@ -594,18 +773,42 @@ private:
 				throw std::runtime_error("Dynamic cast childDirective failed");
 			parseLocationDirective(childDirective, locConfig);
 		}
+		inheritanceLocationBlock(locConfig);
 		config.locations.push_back(locConfig);
-		std::cout << "Location block added to the server config" << std::endl;
+		// std::cout << "Location block added to the server config" << std::endl;
 	}
 
+public:
+	ServerConfigSetter(void) {}
+	~ServerConfigSetter(void) {}
+
+	// To add in config manager later
+	// void	loadFromAst(const std::vector<IConfigNode*>& ast)
+	// {
+	// 	for (std::vector<IConfigNode*>::const_iterator it = ast.begin(); it != ast.end(); it++)
+	// 	{
+	// 		if ((*it)->isBlock())
+	// 		{
+	// 			Block*	block = dynamic_cast<Block*>(*it);
+	// 			if (!block)
+	// 				throw std::runtime_error("Dynamic cast to block failed");
+	// 			if (block->name != "server")
+	// 				throw std::runtime_error("Expected 'server' block at top level");
+	// 			parseServerBlock(block);
+	// 			continue ;
+	// 		}
+	// 		throw std::runtime_error("Unrecognized server block at top ast level");
+	// 	}
+	// }
+	
 	void	parseServerBlock(const Block* block)
 	{
-		ServerConfig	config;
-		
+		if (block->arguments.size() != 0)
+			throw std::runtime_error("Server block cannot have arguments");
 		for (size_t i = 0; i < block->children.size(); i++)
 		{
 			IConfigNode*	child = block->children[i];
-			std::cout << "Server block children n°" << i << " :\t";
+			// std::cout << "Server block children n°" << i << " :\t";
 			if (child->isBlock())
 			{
 				Block*	childBlock = dynamic_cast<Block*>(child);
@@ -613,66 +816,96 @@ private:
 					throw std::runtime_error("Dynamic cast childBlock failed");
 				if (childBlock->name != "location")
 					throw std::runtime_error("Unrecognized location block inside server");
-				parseLocationBlock(childBlock, config);
+				parseLocationBlock(childBlock, _config);
 				continue ;
 			}
 			Directive*	childDirective = dynamic_cast<Directive*>(child);
 			if (!childDirective)
-				throw std::runtime_error("Dynamic cast childDirectiveaaa failed");
-			parseServerDirective(childDirective, config);
+				throw std::runtime_error("Dynamic cast childDirective failed");
+			parseServerDirective(childDirective, _config);
 		}
-		_servers.push_back(config);
-		std::cout << "Server config added to the manager vector of servers" << std::endl;
+		// std::cout << "Server config added to the manager vector of servers" << std::endl;
+	}
+	
+	const	ServerConfig& getServerConfig(void) const { return _config; }
+
+	void	printLocationConfig(const LocationConfig& config, size_t i) const
+	{
+		std::cout 	<< "\t****** LOCATION BLOCK " << i << " ******\n" 
+					<< "\tPath modifier : " + config.pathModifier + "\n"
+					<< "\tPath : " + config.path + "\n"
+					<< "\tRoot : " + config.root + "\n"
+					<< "\tAlias : " + config.alias + "\n"
+					<< "\tIndex : ";
+		for (size_t i = 0; i < config.index.size(); i++)
+			std::cout << config.index[i] << " ";
+		std::cout 	<< "\n"
+				 	<< "\tAutoindex : " << ((config.autoindex.second == true) ? "on" : "off") << "\n"
+					<< "\tError pages :\n";
+		for (std::map<int, std::string>::const_iterator it = config.errorPages.begin(); it != config.errorPages.end(); it++)
+			std::cout << "\t\t" << it->first << " : " << it->second << "\n";
+		std::cout 	<< "\tClient max body size (in bytes) : " << config.clientMaxBodySize.second << "\n"
+					<< "\tAllowed methods (1: GET, 2: POST, 3: DELETE, 4: PUT) : ";
+		for (std::set<HttpMethods>::const_iterator it = config.allowedMethods.begin(); it != config.allowedMethods.end(); it++)
+			std::cout << (*it + 1) << " ";
+		std::cout	<< "\n"
+					<< "\tCGI Pass : " + config.cgiPass
+					<< "\n" << std::endl;
+	}
+	
+	void	printServerConfig(const ServerConfig& config) const
+	{
+		std::cout 	<< "****** SERVER BLOCK ******\n" 
+					<< "Host : " + config.host + "\n"
+					<< "Port : " << config.port << "\n"
+					<< "Server name : ";
+		for (size_t i = 0; i < config.serverName.size(); i++)
+			std::cout << config.serverName[i] << " ";
+		std::cout 	<< "\n"
+					<< "Root : " + config.root + "\n"
+					<< "Index : ";
+		for (size_t i = 0; i < config.index.size(); i++)
+			std::cout << config.index[i] << " ";
+		std::cout 	<< "\n"
+				 	<< "Autoindex : " << ((config.autoindex.second == true) ? "on" : "off") << "\n"
+					<< "Error pages :\n";
+		for (std::map<int, std::string>::const_iterator it = config.errorPages.begin(); it != config.errorPages.end(); it++)
+			std::cout << "\t" << it->first << " : " << it->second << "\n";
+		std::cout 	<< "Client max body size (in bytes) : " << config.clientMaxBodySize.second << "\n";
+		for (size_t i = 0; i < config.locations.size(); i++)
+			printLocationConfig(config.locations[i], i);
+		std::cout	<< "\n" << std::endl;
 	}
 
+	
+};
 
+
+class	ServerConfigValidator
+{
+private:
 	void	validateServerConfig(const ServerConfig& config) {}
 	void	validateLocationConfig(const LocationConfig& config) {}
 
 public:
-	ConfigManager(void) {}
-	~ConfigManager(void) {}
-
-	void	loadFromAst(const std::vector<IConfigNode*>& ast)
-	{
-		for (std::vector<IConfigNode*>::const_iterator it = ast.begin(); it != ast.end(); it++)
-		{
-			if ((*it)->isBlock())
-			{
-				Block*	block = dynamic_cast<Block*>(*it);
-				if (!block)
-					throw std::runtime_error("Dynamic cast to block failed");
-				if (block->name != "server")
-					throw std::runtime_error("Expected 'server' block at top level");
-				parseServerBlock(block);
-				continue ;
-			}
-			throw std::runtime_error("Unrecognized server block at top ast level");
-		}
-	}
 	
 
-	const	std::vector<ServerConfig>& getServerConfigs(void) const { return _servers; }
-	
 };
+
 
 int main(void)
 {
-	ConfigFile	file("lol.conf");
-	Lexer		lexer(file.getContent());
+	Lexer		lexer("lol.conf");
 	Parser		parser(lexer.getTokens());
 	parser.showAst();
-	std::cout << std::string(100, '*') << std::endl;
+	std::cout << "\n" << std::string(100, '*') << "\n" << std::endl;
 
-	ConfigManager	config;
-	config.loadFromAst(parser.getAst());
-	ServerConfig	serverConfig = config.getServerConfigs()[0];
-	std::cout << serverConfig.host << " " << serverConfig.port << std::endl;
-	std::cout << serverConfig.server_name[0] << " " << serverConfig.server_name[1] << std::endl;
-	std::cout << serverConfig.root  << std::endl;
-	std::cout << serverConfig.index[0] << " " << serverConfig.index[1] << std::endl;
-	std::cout << serverConfig.error_pages[404] << std::endl;
-	std::cout << serverConfig.error_pages[406] << std::endl;
-
-    return (0);
+	ServerConfigSetter	config;
+	config.parseServerBlock(dynamic_cast<Block*>(parser.getAst()[0]));
+	ServerConfig	serverConfig = config.getServerConfig();
+	std::cout << "\n" << std::string(100, '*') << "\n" << std::endl;
+	
+	config.printServerConfig(serverConfig);
+    
+	return (0);
 }
