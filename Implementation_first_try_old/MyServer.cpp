@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/01 13:02:42 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/04 22:21:14 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/13 10:43:55 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -118,6 +118,6 @@ MyServer::~MyServer(void)
 
 void    MyServer::runServer(void)
 {
-    std::cout << "Server running and waiting for connections..." << std::endl;
+    std::cout << "Server running and waiting for connections on port " << _ports[0] << " ..." << std::endl;
     _mainLoop();
 }

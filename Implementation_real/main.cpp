@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/09 19:32:00 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/13 09:40:45 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/13 10:34:11 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -371,6 +371,9 @@ public:
 	}
 };
 
+
+
+
 enum	HttpMethods
 {
 	HTTP_GET,
@@ -378,9 +381,6 @@ enum	HttpMethods
 	HTTP_DELETE,
 	HTTP_PUT
 };
-
-
-
 
 struct	ServerConfig;
 
@@ -435,7 +435,7 @@ private:
 	int		isValidPort(const std::string& port)
 	{
 		long	result = strToVal(port);
-		if (result < 0 || result > 65535)
+		if (result < 1 || result > 65535)
 			throw std::runtime_error("Invalid port : " + port);
 		return (static_cast<int>(result));
 	}
@@ -465,6 +465,7 @@ private:
 		std::size_t	sep = listenArg.find(':');
 		if (sep == std::string::npos)
 		{
+			config.host = "0.0.0.0";
 			config.port = isValidPort(listenArg);
 		}
 		else
@@ -880,7 +881,6 @@ public:
 	
 };
 
-
 class	ServerConfigValidator
 {
 private:
@@ -891,6 +891,7 @@ public:
 	
 
 };
+
 
 
 int main(void)
