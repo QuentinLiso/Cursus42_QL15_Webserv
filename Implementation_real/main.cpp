@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/09 19:32:00 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/13 18:12:58 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/15 12:25:38 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,6 +14,7 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <algorithm>
 #include <exception>
 #include <stdexcept>
 #include <fstream>
@@ -22,6 +23,8 @@
 #include <cstdarg>
 #include <cmath>
 #include <climits>
+#include <sys/stat.h>
+#include <unistd.h>
 
 
 std::vector<std::string>    split(const std::string &str, const std::string& delimiters)
@@ -50,6 +53,14 @@ std::string					fileToStr(const std::string& filename)
 	buffer << file.rdbuf();
 	file.close();
 	return (buffer.str());
+}
+
+template < typename T>
+std::string	convToStr(T& val)
+{
+	std::ostringstream	oss;
+	oss << val;
+	return (oss.str());
 }
 
 
@@ -404,7 +415,7 @@ struct	ServerConfig
 {
 	std::string					host;						// Server block specific
 	int							port;						// Server block specific
-	std::vector<std::string>	serverName;					// Server block specific
+	std::vector<std::string>	serverNames;					// Server block specific
 	std::string					root;						// Allowed in both server and location block
 	std::vector<std::string>	index;						// Allowed in both server and location block
 	std::pair<bool, bool>		autoindex;					// Allowed in both server and location block	
@@ -419,6 +430,7 @@ struct	ServerConfig
 class	ServerConfigSetter
 {
 private:
+	const static std::string	_rootAliasSpecials;
 
 	static long	strToVal(const std::string& val)
 	{
@@ -474,31 +486,79 @@ private:
 		}
 	}
 
-	static void	makeServerName(const Directive* directive, ServerConfig& config)
+	static void	makeServerNames(const Directive* directive, ServerConfig& config)
 	{
 		std::vector<std::string>	args = directive->arguments;
 		if (args.size() == 0)
 			throw std::runtime_error("Missing arguments in server_name directive");
-		if (config.serverName.size() != 0)
+		if (config.serverNames.size() != 0)
 		{
 			std::cout << "WARNING : server_name already populated earlier, overwriting with current server_name" << std::endl;
-			config.serverName.clear();
+			config.serverNames.clear();
 		}
 		for (size_t i = 0; i < args.size(); i++)
 		{
 			if (!args[i].empty())
-				config.serverName.push_back(args[i]);
+				config.serverNames.push_back(args[i]);
 		}
 	}
 	
+	
+	static bool	isValidRootAliasChar(char c)
+	{
+		return (std::isalnum(c) || _rootAliasSpecials.find(c) != std::string::npos);
+	}
+
+	static	std::string&	removeTrailingChar(std::string& str, char c)
+	{
+		if (str.empty())
+			return (str);
+		while (str.size() > 1 && str[str.size() - 1] == c)
+			str.erase(str.size() - 1);
+		return (str);
+	}
+
+	static std::string&		removeDuplicateChar(std::string& str, char c)
+	{
+		std::string doublon = std::string(2, c);
+		size_t	i = str.find(doublon);
+		if (i == std::string::npos)
+			return (str);
+		std::cout << "WARNING: double slash '//' found in directive : '" + str + "'";
+		while (str.size() > 1 && i != std::string::npos)
+		{
+			str.erase(i + 1, 1);
+			i = str.find(doublon);
+		}
+		std::cout << " -> Normalized to '" + str + "'" << std::endl;
+		return (str);
+	}
+
+	static std::string&		normalizeRootAlias(std::string& str)
+	{
+		removeDuplicateChar(str, '/');
+		removeTrailingChar(str, '/');
+		return (str);
+	}
+
+
 	static void	makeServerRoot(const Directive* directive, ServerConfig& config)
 	{
 		std::vector<std::string>	args = directive->arguments;
 		if (args.size() != 1 || args[0].empty())
 			throw std::runtime_error("Missing or invalid argument in root directive");
+		
+		std::string	root = args[0];
+		if (root[0] != '/')
+			throw std::runtime_error("root directive '" + root + "' must start with a '/'");
+		for (size_t i = 0; i < root.size(); i++)
+		{
+			if (!isValidRootAliasChar(root[i]))
+				throw std::runtime_error("Invalid character found in root directive '" + root + "'");
+		}
 		if (!config.root.empty())
-			std::cout << "WARNING: root already defined earlier, overwriting with current directive" << std::endl;
-		config.root = args[0];
+			std::cout << "WARNING: root already defined earlier, overwriting with current directive" << std::endl;	
+		config.root = normalizeRootAlias(root);
 	}
 
 	template <typename T>
@@ -619,7 +679,7 @@ private:
 		if (directive->name == "listen")
 			makeHostAndPort(directive, config);
 		else if (directive->name == "server_name")
-			makeServerName(directive, config);
+			makeServerNames(directive, config);
 		else if (directive->name == "root")
 			makeServerRoot(directive, config);
 		else if (directive->name == "index")
@@ -642,9 +702,20 @@ private:
 			throw std::runtime_error("Missing or invalid argument in root directive");
 		if (!config.alias.empty())
 			throw std::runtime_error("Root directive aborted: Alias directive already defined in the location, cannot have both alias and root in the same location");
+		
+		std::string	root = args[0];
+		if (root[0] != '/')
+			throw std::runtime_error("root directive '" + root + "' must start with a '/'");
+		for (size_t i = 0; i < root.size(); i++)
+		{
+			if (!isValidRootAliasChar(root[i]))
+				throw std::runtime_error("Invalid character found in root directive '" + root + "'");
+		}
+		
 		if (!config.root.empty())
 			std::cout << "WARNING: root already defined earlier, overwriting with current directive" << std::endl;
-		config.root = args[0];
+
+		config.root = normalizeRootAlias(root);
 	}
 
 	static void	makeLocationAlias(const Directive* directive, LocationConfig& config)
@@ -654,7 +725,17 @@ private:
 			throw std::runtime_error("Missing or invalid argument in root directive");
 		if (!config.alias.empty() || !config.root.empty())
 			throw std::runtime_error("Alias directive aborted: Alias or root directive already defined in the location, cannot have both alias and root in the same location");
-		config.alias = args[0];
+		
+		std::string	alias = args[0];
+		if (alias[0] != '/')
+			throw std::runtime_error("alias directive '" + alias + "' must start with a '/'");
+		for (size_t i = 0; i < alias.size(); i++)
+		{
+			if (!isValidRootAliasChar(alias[i]))
+				throw std::runtime_error("Invalid character found in root directive '" + alias + "'");
+		}
+
+		config.alias = normalizeRootAlias(alias);
 	}
 
 	static void	makeAllowedMethods(const Directive* directive, LocationConfig& config)
@@ -715,34 +796,23 @@ private:
 	{
 		std::vector<std::string>	args = block->arguments;
 		
-		switch(args.size())
+		if (args.size() != 1 || args[0].empty())
+			throw std::runtime_error("Missing or invalid path argument in location statement");
+		
+		std::string	path = args[0];
+		if (path[0] != '/')
+			throw std::runtime_error("Location path argument '" + path + "' must start with a '/'");
+		for (size_t i = 0; i < path.size(); i++)
 		{
-			case 1:
-				if (args[0].empty() || args[0][0] != '/')
-					throw std::runtime_error("Invalid path in location args");
-				locConfig.path = args[0];
-				break;
-			case 2:
-				if (args[0] != "=" && args[0] != "~" && args[0] != "~*" && args[0] != "^~")
-					throw std::runtime_error("Invalid modifier '" + args[0] + "' in location args");
-				if (args[1].empty() || ( (args[1][0] != '/') && (args[0] == "=" || args[0] == "^~") ))
-					throw std::runtime_error("Invalid path in location args");
-				locConfig.path = args[1];
-				locConfig.pathModifier = args[0];
-				break;
-			default:
-				throw std::runtime_error("Invalid args in location block");
-				break;
+			if (!isValidRootAliasChar(path[i]))
+				throw std::runtime_error("Invalid character found in location path '" + path + "'");
 		}
-	
+
+		locConfig.path = removeDuplicateChar(path, '/');
 	}
 
 	static void	inheritanceLocationBlock(LocationConfig& locConfig, ServerConfig& serverConfig)
 	{
-		// if (locConfig.serverConfig == NULL)
-		// 	return ;
-		// ServerConfig*	serverConfig = locConfig.serverConfig;
-
 		if (locConfig.root.empty() && locConfig.alias.empty())
 			locConfig.root = serverConfig.root;
 		if (locConfig.index.empty())
@@ -759,7 +829,6 @@ private:
 	{
 		LocationConfig	locConfig;
 		
-		// locConfig.serverConfig = &config;
 		parseLocationBlockArgs(block, locConfig);
 		for (size_t i = 0; i < block->children.size(); i++)
 		{
@@ -838,8 +907,8 @@ public:
 					<< "Host : " + config.host + "\n"
 					<< "Port : " << config.port << "\n"
 					<< "Server name : ";
-		for (size_t i = 0; i < config.serverName.size(); i++)
-			std::cout << config.serverName[i] << " ";
+		for (size_t i = 0; i < config.serverNames.size(); i++)
+			std::cout << config.serverNames[i] << " ";
 		std::cout 	<< "\n"
 					<< "Root : " + config.root + "\n"
 					<< "Index : ";
@@ -857,17 +926,21 @@ public:
 	}
 };
 
+const std::string	ServerConfigSetter::_rootAliasSpecials = "/-_.";
+
+
 
 class	ConfigBuilder
 {
+public:
+	typedef std::map<std::pair<std::string, int>, std::set<std::string> >	IpPortDomainsMap;
+
 private:
 	std::vector<ServerConfig>	_servers;
 
-	void	validateServerConfig(const ServerConfig& config) {}
-	void	validateLocationConfig(const LocationConfig& config) {}
-
-	void	loadFromAst(const std::vector<IConfigNode*>& ast)
+	std::vector<ServerConfig>	loadFromAst(const std::vector<IConfigNode*>& ast)
 	{
+		std::vector<ServerConfig>	servers;
 		for (std::vector<IConfigNode*>::const_iterator it = ast.begin(); it != ast.end(); it++)
 		{
 			
@@ -878,43 +951,330 @@ private:
 					throw std::runtime_error("Dynamic cast to block failed");
 				if (block->name != "server")
 					throw std::runtime_error("Expected 'server' block at top level");
-				_servers.push_back(ServerConfigSetter::parseServerBlock(block));
+				servers.push_back(ServerConfigSetter::parseServerBlock(block));
 				continue ;
 			}
 			throw std::runtime_error("Unrecognized server block at top ast level");
 		}
+		return (servers);
 	}
 
+	void	validateIpPortDomains(void) const
+	{
+		IpPortDomainsMap	ipPortDomainsMap;			// std::map<std::pair<std::string, int>, std::set<std::string> >		=	map < <ip, port>, domains >
+		
+		for (size_t i = 0; i < _servers.size(); i++)
+		{
+			const ServerConfig&	server = _servers[i];
+			if (server.port == -1)
+				throw std::runtime_error("server has no defined port");
+			
+			std::pair<std::string, int> ipPort(server.host, server.port);			// Create a pair with the server host and server port
+			std::set<std::string>&	ipPortDomains = ipPortDomainsMap[ipPort];		// Look for the vector of domains at the key ip/port inside the ipPortDomainMap
+			
+			for (size_t j = 0; j < server.serverNames.size(); j++)
+			{
+				const std::string&	serverName = server.serverNames[j];
+				if (ipPortDomains.insert(serverName).second == false)				// Throw if the given serverName is found in the vector of domains at the key ip/port
+					throw std::runtime_error("Duplicate server name " + serverName + " for host " + server.host + ":" + convToStr(server.port));
+			}
 
+			if (server.serverNames.empty() && !ipPortDomains.empty())
+				throw std::runtime_error("Server block with no server_name directive for host " + server.host + ":" + convToStr(server.port) + " must be declared first in config file");
+		}
+	}
+
+	void	checkZeroPorts(void) const
+	{
+		const std::vector<const ServerConfig*> zerosConfigs = findConfigs("0.0.0.0");
+		if (zerosConfigs.empty())
+			return ;
+	
+		std::set<int>	zeroPorts;
+		for (size_t i = 0; i < zerosConfigs.size(); i++)
+		{
+			if (zeroPorts.insert(zerosConfigs[i]->port).second == false)
+				throw std::runtime_error("Duplicate listening port " + convToStr(zerosConfigs[i]->port) + " on default ip 0.0.0.0");
+		}
+		
+		const std::vector<const ServerConfig*> nonZerosConfigs = findOtherConfigs("0.0.0.0");
+		for (size_t i = 0; i < nonZerosConfigs.size(); i++)
+		{
+			const ServerConfig* config = nonZerosConfigs[i];
+			if (zeroPorts.find(config->port) != zeroPorts.end())
+				throw std::runtime_error("Duplicate listening port " + convToStr(config->port) + " on default ip 0.0.0.0 and ip " + config->host);
+		}
+	}
+
+	void	checkServerEmptyRoot(const ServerConfig& server) const
+	{
+		bool	hasDefaultLocation = false;
+		for (size_t j = 0; j < server.locations.size(); j++)
+		{
+			const LocationConfig&	location = server.locations[j];
+			if (location.path == "/")
+				hasDefaultLocation = true;
+			if (location.root.empty() && location.alias.empty())
+				throw std::runtime_error("Empty root at server level is not covered by root or alias at location level '" + location.path + "'");
+		}
+		if (!hasDefaultLocation)
+			throw std::runtime_error("Server with empty root has no default 'location /' path");
+	}
+
+	void	checkDuplicatePaths(const ServerConfig& server) const
+	{
+		std::set<std::string>	paths;
+		
+		for (size_t j = 0; j < server.locations.size(); j++)
+		{
+			const std::string& path = server.locations[j].path;
+			if (paths.insert(path).second == false)
+				throw std::runtime_error("Duplicate location path '" + path + "' found in same server block");
+		}
+	}
+
+	void	checkExecutableDirectory(const std::string& folderPath) const
+	{
+		struct stat	fileStatus;
+		int	status = stat(folderPath.c_str(), &fileStatus);
+		
+		if (status != 0)
+			throw std::runtime_error(folderPath + " does not exist");
+		if (!S_ISDIR(fileStatus.st_mode))
+			throw std::runtime_error(folderPath + " is not a directory");
+			
+		if (access(folderPath.c_str(), W_OK | R_OK))
+			throw std::runtime_error(folderPath + " cannot be accessed");
+	}
+
+	void	checkAccessRights(const ServerConfig& server) const
+	{
+		struct stat		fileStatus;
+
+		if (!server.root.empty())
+			checkExecutableDirectory(server.root);
+		for (size_t i = 0; i < server.locations.size(); i++)
+		{
+			const LocationConfig& locConfig = server.locations[i];
+			if (!locConfig.root.empty())
+				checkExecutableDirectory(locConfig.root + locConfig.path);
+			else
+				checkExecutableDirectory(locConfig.alias);
+		}
+	}
+
+	void	checkPathsRootAlias(void) const
+	{
+		for (size_t i = 0; i < _servers.size(); i++)
+		{
+			const ServerConfig&	server = _servers[i];
+			if (server.root.empty())
+				checkServerEmptyRoot(server);
+			checkAccessRights(server);
+		}
+	}
+	
 public:
+
 	ConfigBuilder(const std::vector<IConfigNode*>& ast)
 	{
-		loadFromAst(ast);
+		_servers = loadFromAst(ast);
+		validateIpPortDomains();
+		checkZeroPorts();
+		checkPathsRootAlias();
 	}
 
 	~ConfigBuilder(void) {}
 
 	const std::vector<ServerConfig>&	getServers(void) const { return (_servers); }
 
-	void	printConfig(void) const
+	const std::vector<const ServerConfig*>	findConfigs(int port) const
 	{
+		std::vector<const ServerConfig*>	configs;
+
 		for (size_t i = 0; i < _servers.size(); i++)
-			ServerConfigSetter::printServerConfig(_servers[i], i);
+		{
+			const ServerConfig& server = _servers[i];
+			if (server.port == port)
+				configs.push_back(&server);
+		}
+		return (configs);
+	}
+
+	const std::vector<const ServerConfig*>	findConfigs(const std::string& ip, bool exactMatch = true) const
+	{
+		std::vector<const ServerConfig*>	configs;
+
+		if (exactMatch)
+		{
+			for (size_t i = 0; i < _servers.size(); i++)
+			{
+				const ServerConfig& server = _servers[i];
+				if (server.host == ip)
+					configs.push_back(&server);
+			}
+		}
+		else
+		{
+			for (size_t i = 0; i < _servers.size(); i++)
+			{
+				const ServerConfig& server = _servers[i];
+				if (server.host.find(ip) != std::string::npos)
+					configs.push_back(&server);
+			}
+		}
+		return (configs);
+	}
+
+	const std::vector<const ServerConfig*>	findConfigs(const std::string& ip, int port, bool exactMatch = true) const
+	{
+		std::vector<const ServerConfig*>	configs;
+
+		if (exactMatch)
+		{
+			for (size_t i = 0; i < _servers.size(); i++)
+			{
+				const ServerConfig& server = _servers[i];
+				if (server.host == ip && server.port == port)
+					configs.push_back(&server);
+			}
+		}
+		else
+		{
+			for (size_t i = 0; i < _servers.size(); i++)
+			{
+				const ServerConfig& server = _servers[i];
+				if (server.host.find(ip) != std::string::npos && server.port == port)
+					configs.push_back(&server);
+			}
+		}
+		return (configs);
+	}
+
+	const ServerConfig*	findConfig(const std::string& ip, int port, const std::string& domain)
+	{
+		std::vector<const ServerConfig*>	configs = findConfigs(ip, port);
+
+		if (configs.empty())			// NO config for this ip/port
+			return (NULL);
+		if (domain.empty())				// There are some config but domain is empty so we look for a default config, which can only be the first one
+			return (configs[0]);
+
+		for (size_t i = 0; i < configs.size(); i++)
+		{
+			const std::vector<std::string>& configServerNames = configs[i]->serverNames;
+			if (std::find(configServerNames.begin(), configServerNames.end(), domain) != configServerNames.end())
+				return (configs[i]);	// We found the domain in the vector of serverNames for a given ip/port (uniqueness was checked during validation)
+		}
+		return (configs[0]);			// Fallback to first config if no domain match but we had found config(s) for this ip/port
+	}
+
+
+	const std::vector<const ServerConfig*>	findOtherConfigs(int port) const
+	{
+		std::vector<const ServerConfig*>	configs;
+
+		for (size_t i = 0; i < _servers.size(); i++)
+		{
+			const ServerConfig& server = _servers[i];
+			if (server.port != port)
+				configs.push_back(&server);
+		}
+		return (configs);
+	}
+
+	const std::vector<const ServerConfig*>	findOtherConfigs(const std::string& ip, bool exactMatch = true) const
+	{
+		std::vector<const ServerConfig*>	configs;
+
+		if (exactMatch)
+		{
+			for (size_t i = 0; i < _servers.size(); i++)
+			{
+				const ServerConfig& server = _servers[i];
+				if (server.host != ip)
+					configs.push_back(&server);
+			}
+		}
+		else
+		{
+			for (size_t i = 0; i < _servers.size(); i++)
+			{
+				const ServerConfig& server = _servers[i];
+				if (server.host.find(ip) == std::string::npos)
+					configs.push_back(&server);
+			}
+		}
+		return (configs);
+	}
+
+	const std::vector<const ServerConfig*>	findOtherConfigs(const std::string& ip, int port, bool exactMatch = true) const
+	{
+		std::vector<const ServerConfig*>	configs;
+
+		if (exactMatch)
+		{
+			for (size_t i = 0; i < _servers.size(); i++)
+			{
+				const ServerConfig& server = _servers[i];
+				if (server.host != ip || server.port != port)
+					configs.push_back(&server);
+			}
+		}
+		else
+		{
+			for (size_t i = 0; i < _servers.size(); i++)
+			{
+				const ServerConfig& server = _servers[i];
+				if (server.host.find(ip) != std::string::npos || server.port != port)
+					configs.push_back(&server);
+			}
+		}
+		return (configs);
+	}
+
+	
+	void	printConfig(const std::vector<ServerConfig>& servers) const
+	{
+		for (size_t i = 0; i < servers.size(); i++)
+			ServerConfigSetter::printServerConfig(servers[i], i);
+	}
+
+	void	printConfig(const std::vector<const ServerConfig*> servers) const
+	{
+		for (size_t i = 0; i < servers.size(); i++)
+		{
+			if (servers[i])
+				ServerConfigSetter::printServerConfig(*(servers[i]), i);
+		}
+	}
+
+	void	printConfig(const std::string& ip, int port, const std::string& domain)
+	{
+		const ServerConfig*	config = findConfig(ip, port, domain);
+		if (config)
+			ServerConfigSetter::printServerConfig(*config, 0);
+		else
+			std::cout << "No config found for ip '" << ip << "', port '" << port << "', domain '" << domain << "'" << std::endl;
 	}
 };
 
-
-
+	
 int main(void)
 {
-	Lexer		lexer("lol.conf");
+	Lexer		lexer("lol2.conf");
 	Parser		parser(lexer.getTokens());
 	parser.showAst();
 	std::cout << "\n" << std::string(100, '*') << "\n" << std::endl;
 
 	ConfigBuilder	config(parser.getAst());
-	config.printConfig();
+	config.printConfig(config.getServers());
 	std::cout << "\n" << std::string(100, '*') << "\n" << std::endl;
 	    
+	config.printConfig(config.findOtherConfigs("0.0.0.0", 81));
+	std::cout << "\n" << std::string(100, '*') << "\n" << std::endl;
+	    
+	config.printConfig("127.0.0.2", 80, "zizou.com");
+
 	return (0);
 }
