@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/09 19:32:00 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/15 12:25:38 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/16 10:41:44 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,6 +42,7 @@ std::vector<std::string>    split(const std::string &str, const std::string& del
     }
     return (tokens);
 }
+
 
 std::string					fileToStr(const std::string& filename)
 {
@@ -534,12 +535,51 @@ private:
 		return (str);
 	}
 
+	static bool	containsDoubleDotsAccess(const std::string& str)
+	{
+		std::vector<std::string>	segments;
+		std::istringstream			iss(str);
+		std::string					segment;
+
+		while (std::getline(iss, segment, '/'))
+		{
+			if (segment == "..")
+					return (true); 
+		}
+		return (false);
+	}
+
+	static std::string&		removeDotPaths(std::string& str)
+	{
+		std::vector<std::string>	segments;
+		std::istringstream			iss(str);
+		std::string					segment;
+
+		while (std::getline(iss, segment, '/'))
+		{
+			if (segment != "." && !segment.empty())
+				segments.push_back(segment);
+		}
+
+		str.clear();
+		for (size_t i = 0; i < segments.size(); i++)
+			str += "/" + segments[i];
+		
+		if (str.empty())
+			str = "/";
+		return (str);
+	}
+
 	static std::string&		normalizeRootAlias(std::string& str)
 	{
 		removeDuplicateChar(str, '/');
 		removeTrailingChar(str, '/');
+		if (containsDoubleDotsAccess(str))
+			throw std::runtime_error("Filepath " + str + " contains forbidden '..' access");
+		removeDotPaths(str);
 		return (str);
 	}
+
 
 
 	static void	makeServerRoot(const Directive* directive, ServerConfig& config)
@@ -574,8 +614,10 @@ private:
 		}
 		for (size_t i = 0; i < args.size(); i++)
 		{
-			if (!args[i].empty())
-				config.index.push_back(args[i]);
+			std::string	fileName = args[i];
+			if (fileName.empty() || fileName.find('/') != std::string::npos || fileName == "." || fileName == "..")
+				throw std::runtime_error("Invalid index filename '" + fileName + "'");
+			config.index.push_back(args[i]);
 		}
 	}
 
@@ -598,23 +640,26 @@ private:
 			config.autoindex.second = false;
 		}
 		else
-			throw std::runtime_error("Invalid arguments in autoindex directive : only 'on' and 'off' allowed");		
+			throw std::runtime_error("Invalid arguments in autoindex directive : only 'on' and 'off' allowed, and we got '" + args[0] + "'");		
 	}
 
-	static bool	isValidErrorUri(const std::string& uri)
+	static void	checkValidErrorUri(const std::string& uri)
 	{
 		std::string	http = "http://";
 		std::string https = "https://";
 		
 		if (uri.empty())
-			return (false);
+			throw std::runtime_error("Empty URI in error_pages directive");
 		if (uri[0] == '/' && uri.size() > 1)
-			return (true);
-		if (!uri.compare(0, http.size(), http) && (uri.size() > http.size()))
-			return (true);
-		if (!uri.compare(0, https.size(), https) && (uri.size() > https.size()))
-			return (true);
-		return (false);
+		{
+			if (containsDoubleDotsAccess(uri))
+				throw std::runtime_error("Invalid URI in error_pages directive containing double dots : '" + uri + "'");
+			return ;
+		}
+		if ((!uri.compare(0, http.size(), http) && (uri.size() > http.size()))
+			|| (!uri.compare(0, https.size(), https) && (uri.size() > https.size())))
+			return ;
+		throw std::runtime_error("Invalid URI in error_pages directive : '" + uri + "'");;
 	}
 
 	template <typename T>
@@ -626,8 +671,7 @@ private:
 			throw std::runtime_error("Missing arguments in error_pages directive");
 		
 		size_t	last = args.size() - 1;
-		if (!isValidErrorUri(args[last]))
-			throw std::runtime_error("Invalid URI in error_pages directive");
+		checkValidErrorUri(args[last]);
 		for (size_t i = 0; i < last; i++)
 		{
 			int	error = strToVal(args[i]);
@@ -738,24 +782,33 @@ private:
 		config.alias = normalizeRootAlias(alias);
 	}
 
+	static void	addAllowedMethod(std::set<HttpMethods>& configHttpMethods, HttpMethods methodId, const std::string& methodStr)
+	{
+		if (configHttpMethods.insert(methodId).second == false)
+			std::cout << "WARNING: Duplicate HTTP method '" << methodStr << "' found in allowed_methods directive" << std::endl;
+	}
+
 	static void	makeAllowedMethods(const Directive* directive, LocationConfig& config)
 	{
 		std::vector<std::string>	args = directive->arguments;
 	
 		if (args.size() == 0)
 			throw std::runtime_error("Missing arguments in allowed_methods directive");
+		if (!config.allowedMethods.empty())
+			throw std::runtime_error("Duplicate allowed_methods directive found in location config '" + config.path + "'");
 		for (size_t i = 0; i < args.size(); i++)
 		{
-			if (args[i] == "GET")
-				config.allowedMethods.insert(HTTP_GET);
-			else if (args[i] == "PUT")
-				config.allowedMethods.insert(HTTP_PUT);
-			else if (args[i] == "DELETE")
-				config.allowedMethods.insert(HTTP_DELETE);
-			else if (args[i] == "POST")
-				config.allowedMethods.insert(HTTP_POST);
+			std::string&	method = args[i];
+			if (method == "GET")
+				addAllowedMethod(config.allowedMethods, HTTP_GET, method);
+			else if (method == "PUT")
+				addAllowedMethod(config.allowedMethods, HTTP_PUT, method);
+			else if (method == "DELETE")
+				addAllowedMethod(config.allowedMethods, HTTP_DELETE, method);
+			else if (method == "POST")
+				addAllowedMethod(config.allowedMethods, HTTP_POST, method);
 			else
-				throw std::runtime_error("Invalid argument '" + args[i] + "' in allowed_methods directive");
+				throw std::runtime_error("Invalid argument '" + method + "' in allowed_methods directive");
 		}
 	}
 
@@ -807,8 +860,10 @@ private:
 			if (!isValidRootAliasChar(path[i]))
 				throw std::runtime_error("Invalid character found in location path '" + path + "'");
 		}
-
-		locConfig.path = removeDuplicateChar(path, '/');
+		removeDuplicateChar(path, '/');
+		if (containsDoubleDotsAccess(path))
+			throw std::runtime_error("Filepath " + path + " contains forbidden '..' access");
+		locConfig.path = path;
 	}
 
 	static void	inheritanceLocationBlock(LocationConfig& locConfig, ServerConfig& serverConfig)
@@ -1039,12 +1094,36 @@ private:
 		int	status = stat(folderPath.c_str(), &fileStatus);
 		
 		if (status != 0)
-			throw std::runtime_error(folderPath + " does not exist");
-		if (!S_ISDIR(fileStatus.st_mode))
-			throw std::runtime_error(folderPath + " is not a directory");
+		{
+			std::cout << "WARNING: " << folderPath << " does not exist yet" << std::endl;
+			return ;
+		}
 			
-		if (access(folderPath.c_str(), W_OK | R_OK))
-			throw std::runtime_error(folderPath + " cannot be accessed");
+		if (!S_ISDIR(fileStatus.st_mode))
+		{
+			std::cout << "WARNING: " << folderPath << " exists but is not a directory" << std::endl;
+			return ;
+		}
+			
+		if (access(folderPath.c_str(), X_OK | R_OK))
+		{
+			std::cout << "WARNING: " << folderPath << " cannot be accessed" << std::endl;
+			return ;
+		}
+	}
+
+	std::string	joinPaths(const std::string& a, const std::string& b) const
+	{
+		if(a.empty())
+			return (b);
+		if (b.empty())
+			return (a);
+		if (a[a.size() - 1] == '/' && b[0] == '/')
+			return (a + b.substr(1));
+		else if (a[a.size() - 1] != '/' && b[0] != '/')
+			return (a + "/" + b);
+		else
+			return (a + b);
 	}
 
 	void	checkAccessRights(const ServerConfig& server) const
@@ -1057,23 +1136,47 @@ private:
 		{
 			const LocationConfig& locConfig = server.locations[i];
 			if (!locConfig.root.empty())
-				checkExecutableDirectory(locConfig.root + locConfig.path);
+				checkExecutableDirectory(joinPaths(locConfig.root, locConfig.path));
 			else
 				checkExecutableDirectory(locConfig.alias);
 		}
 	}
 
-	void	checkPathsRootAlias(void) const
+	void	checkPathsRootAlias(const ServerConfig& server) const
+	{
+		if (server.root.empty())
+			checkServerEmptyRoot(server);
+		checkDuplicatePaths(server);
+		checkAccessRights(server);
+	}
+	
+	void	fillEmptyAllowedMethods(ServerConfig& server)
+	{
+		for (size_t i = 0; i < server.locations.size(); i++)
+		{
+			LocationConfig& locConfig = server.locations[i];
+			if (locConfig.allowedMethods.empty())
+			{
+				std::cout << "WARNING: location '" + locConfig.path + "' has no allowed_methods directive, adding GET and POST by default" << std::endl;
+				locConfig.allowedMethods.insert(HTTP_GET);
+				locConfig.allowedMethods.insert(HTTP_POST);
+			}
+		}
+	}
+
+	void	serversLoopCheck(void)
 	{
 		for (size_t i = 0; i < _servers.size(); i++)
 		{
-			const ServerConfig&	server = _servers[i];
-			if (server.root.empty())
-				checkServerEmptyRoot(server);
-			checkAccessRights(server);
+			const ServerConfig&	const_server = _servers[i];
+			ServerConfig& server = _servers[i];
+			
+			checkPathsRootAlias(const_server);
+			fillEmptyAllowedMethods(server);
 		}
 	}
-	
+
+
 public:
 
 	ConfigBuilder(const std::vector<IConfigNode*>& ast)
@@ -1081,7 +1184,7 @@ public:
 		_servers = loadFromAst(ast);
 		validateIpPortDomains();
 		checkZeroPorts();
-		checkPathsRootAlias();
+		serversLoopCheck();
 	}
 
 	~ConfigBuilder(void) {}
@@ -1268,6 +1371,8 @@ int main(void)
 	std::cout << "\n" << std::string(100, '*') << "\n" << std::endl;
 
 	ConfigBuilder	config(parser.getAst());
+	std::cout << "\n" << std::string(100, '*') << "\n" << std::endl;
+
 	config.printConfig(config.getServers());
 	std::cout << "\n" << std::string(100, '*') << "\n" << std::endl;
 	    
