@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/09 19:32:00 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/16 10:41:44 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/16 18:30:18 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -820,6 +820,8 @@ private:
 			throw std::runtime_error("cgi_pass directive should have exactly 1 non-empty argument");
 		if (!config.cgiPass.empty())
 			throw std::runtime_error("Duplicate cgi_pass directive encountered");
+		if (args[0][0] != '/')
+			throw std::runtime_error("cgi_pass '" + args[0] + "'must be an absolute path, so must start with '/'");
 		config.cgiPass = args[0];
 	}
 
@@ -1128,8 +1130,6 @@ private:
 
 	void	checkAccessRights(const ServerConfig& server) const
 	{
-		struct stat		fileStatus;
-
 		if (!server.root.empty())
 			checkExecutableDirectory(server.root);
 		for (size_t i = 0; i < server.locations.size(); i++)
@@ -1164,15 +1164,50 @@ private:
 		}
 	}
 
+	void	checkCgiBin(const std::string& filePath) const
+	{
+		struct stat	fileStatus;
+		if (stat(filePath.c_str(), &fileStatus) != 0)
+			throw std::runtime_error("cgi_pass file '" + filePath + "' does not exist");
+		
+		if (!S_ISREG(fileStatus.st_mode))
+			throw std::runtime_error("cgi_pass file '" + filePath + "' is not a file");
+		
+		if (access(filePath.c_str(), X_OK))
+			throw std::runtime_error("cgi_pass file '" + filePath + "' is not executable");	
+	}
+
+	void	checkCgiDirectory(const std::string& filePath) const
+	{
+		struct stat dirStatus;
+		std::string dir = filePath.substr(0, filePath.find_last_of('/'));
+		
+		if (stat(dir.c_str(), &dirStatus) == 0 && dirStatus.st_mode & S_IWOTH)
+			throw std::runtime_error("cgi_pass file directory '" + dir + "' is world writable: Unsafe for cgi_pass");
+	}
+
+	void	checkCgiAccessrights(const ServerConfig& server) const
+	{
+		for (size_t i = 0; i < server.locations.size(); i++)
+		{
+			const std::string& cgiPass = server.locations[i].cgiPass;
+			if (!cgiPass.empty())
+			{
+				checkCgiBin(cgiPass);
+				checkCgiDirectory(cgiPass);
+			}
+		}
+	}
+
 	void	serversLoopCheck(void)
 	{
 		for (size_t i = 0; i < _servers.size(); i++)
 		{
-			const ServerConfig&	const_server = _servers[i];
 			ServerConfig& server = _servers[i];
 			
-			checkPathsRootAlias(const_server);
+			checkPathsRootAlias(server);
 			fillEmptyAllowedMethods(server);
+			checkCgiAccessrights(server);
 		}
 	}
 
@@ -1271,6 +1306,8 @@ public:
 		}
 		return (configs[0]);			// Fallback to first config if no domain match but we had found config(s) for this ip/port
 	}
+
+	
 
 
 	const std::vector<const ServerConfig*>	findOtherConfigs(int port) const
