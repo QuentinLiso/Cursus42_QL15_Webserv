@@ -3,18 +3,3 @@ REGEX documentation
 Syntax of domain (lower case etc.)
 Other remaining validations
 Add constructors in struct ServerConfig and LocationConfig
-
-
-If root not set at server level :
-- Loop over locations
-- check that one location path is /
-- check that all locations have a root or an alias
-
-More general checks :
-- check that the path exists and is a directory
-
-
-OK- check that root or alias starts with a / (can be checked at parsing)
-OK- check that root or alias has allowed characters (alphanumeric, /, ., - and _)
-OK- remove all trailing slashes from root/alias
-OK- show a warning if root/alias as consecutive slashes
