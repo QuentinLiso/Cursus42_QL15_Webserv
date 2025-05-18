@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/08 09:52:48 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/18 17:37:43 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/09 10:28:03 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,7 +16,6 @@
 bool                                            Console::_consoleState = DEFAULT_CONSOLE_STATE;
 bool                                            Console::_logFileState = DEFAULT_LOG_FILE_STATE;
 bool                                            Console::_logDebugState = DEFAULT_LOG_DEBUG_STATE;
-std::string										Console::_configFileName = "";
 std::string                              Console::_logFileName = Console::_generateLogFileName();
 std::map<Console::LogLevel, std::string> Console::_logLevelStr = Console::_generateLogLevelStr();
 std::map<Console::LogLevel, std::string> Console::_logLevelColor = Console::_generateLogLevelColor();
@@ -108,9 +107,6 @@ void    Console::setLogFileState(bool state) { Console::_logFileState = state; }
 bool    Console::getLogDebugState(void) { return Console::_logDebugState; }
 void    Console::setLogDebugState(bool state) { Console::_logDebugState = state; }
 
-const std::string&	Console::getConfigFileName(void) { return Console::_configFileName; };
-void				Console::setConfigFileName(const std::string& fileName) { Console::_configFileName = fileName; };
-
 std::string Console::getLogFileName(void) { return Console::_logFileName; }
 std::string Console::getLogLevelStr(Console::LogLevel level) { return Console::_logLevelStr.at(level); }
 std::string Console::getLogLevelColor(Console::LogLevel level) { return Console::_logLevelColor.at(level); }
@@ -135,114 +131,3 @@ void    Console::log(Console::LogLevel level, const std::string& msg)
         throw std::runtime_error(msg);
 }
 
-bool    Console::configLog(	Console::LogLevel level, 
-							int line,
-							int column,
-							const std::string& configStep,
-							const std::string& msg,
-							const std::string& explicitLine,
-							bool valid)
-{
-
-	std::ostringstream	oss;
-
-	oss << getLogLevelColor(level) << C_BOLD
-		<< getLogLevelStr(level) << ": "
-		<< _configFileName << " "
-		<< "(l" << line << ":c" << column << "): "
-		<< C_RESET
-		<< configStep << ": "
-		<< msg
-		<< " '" << explicitLine << "'";
-
-	std::cout << oss.str() << std::endl;
-	return (valid);
-}
-
-bool    Console::configLog(	Console::LogLevel level, 
-							int line,
-							int column,
-							const std::string& configStep,
-							const std::string& msg,
-							const std::vector<std::string>& explicitLine,
-							bool valid)
-{
-	std::ostringstream	oss;
-
-	oss << getLogLevelColor(level) << C_BOLD
-		<< getLogLevelStr(level) << ": "
-		<< _configFileName << " "
-		<< "(l" << line << ":c" << column << "): "
-		<< C_RESET
-		<< configStep << ": "
-		<< msg
-		<< " '";
-	for (size_t i = 0; i < explicitLine.size(); i++)	
-		oss << explicitLine[i];
-	oss <<  "'";
-
-	std::cout << oss.str() << std::endl;
-    if (level == Console::FATAL)
-	{
-		throw std::runtime_error(oss.str());
-	}
-	return (valid);
-}
-
-bool	Console::error(const Directive* directive, const std::string& configStep, const std::string& msg)
-{
-	if (!directive)
-		return (false);
-
-	std::ostringstream oss;
-	std::vector<std::string>	args = directive->arguments;
-	
-	oss << directive->name;
-	for (size_t i = 0; i < args.size(); i++)	
-		oss << " " << args[i];
-	configLog(ERROR, directive->line, directive->column, configStep, msg, oss.str());
-	return (false);
-}
-
-bool	Console::error(const Block* block, const std::string& configStep, const std::string& msg)
-{
-	if (!block)
-		return (false);
-
-	std::ostringstream oss;
-	std::vector<std::string>	args = block->arguments;
-	
-	oss << block->name;
-	for (size_t i = 0; i < args.size(); i++)	
-		oss << " " << args[i];
-	configLog(ERROR, block->line, block->column, configStep, msg, oss.str());
-	return (false);
-}
-
-void	Console::warning(const Directive* directive, const std::string& configStep, const std::string& msg)
-{
-	if (!directive)
-		return ;
-
-	std::ostringstream oss;
-	std::vector<std::string>	args = directive->arguments;
-	
-	oss << directive->name;
-	for (size_t i = 0; i < args.size(); i++)	
-		oss << " " << args[i];
-	configLog(WARNING, directive->line, directive->column, configStep, msg, oss.str());
-}
-
-void	Console::warning(const Block* block, const std::string& configStep, const std::string& msg)
-{
-	if (!block)
-		return ;
-
-	std::ostringstream oss;
-	std::vector<std::string>	args = block->arguments;
-	
-	oss << block->name;
-	for (size_t i = 0; i < args.size(); i++)	
-		oss << " " << args[i];
-	configLog(WARNING, block->line, block->column, configStep, msg, oss.str());
-}

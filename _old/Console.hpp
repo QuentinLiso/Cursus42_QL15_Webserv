@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/08 09:52:46 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/18 17:34:07 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/09 19:31:35 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,7 +19,6 @@
 
 # include <iostream>
 # include <fstream>
-# include <sstream>
 # include <string>
 # include <map>
 # include <vector>
@@ -28,7 +27,6 @@
 # include <cstring>
 # include <sys/stat.h>
 # include "Colors.hpp"
-# include "DataStructures.hpp"
 
 class Console
 {
@@ -48,7 +46,6 @@ private:
     static bool _logFileState;
     static bool _logDebugState;
 
-	static std::string	_configFileName;
     static std::string  _logFileName;
     static std::map<Console::LogLevel, std::string> _logLevelStr;
     static std::map<Console::LogLevel, std::string> _logLevelColor;
@@ -69,33 +66,11 @@ public:
     static bool getLogFileState(void);
     static bool getLogDebugState(void);
 
-	static const std::string&	getConfigFileName(void);
-	static void					setConfigFileName(const std::string& fileName);
-
     static std::string  getLogFileName(void);
     static std::string  getLogLevelStr(Console::LogLevel level);
     static std::string  getLogLevelColor(Console::LogLevel level);
 
     static void log(Console::LogLevel level, const std::string& msg);
-	static bool configLog(	Console::LogLevel level, 
-							int line,
-							int column,
-							const std::string& configStep,
-							const std::string& msg,
-							const std::string& explicitLine,
-							bool valid = false);
-	static bool configLog(	Console::LogLevel level, 
-							int line,
-							int column,
-							const std::string& configStep,
-							const std::string& msg,
-							const std::vector<std::string>& explicitLine,
-							bool valid = false);
-	
-	static bool	error(const Directive* directive, const std::string& configStep, const std::string& msg);
-	static bool	error(const Block* block, const std::string& configStep, const std::string& msg);
-	static void	warning(const Directive* directive, const std::string& configStep, const std::string& msg);
-	static void	warning(const Block* block, const std::string& configStep, const std::string& msg);
 };
 
 

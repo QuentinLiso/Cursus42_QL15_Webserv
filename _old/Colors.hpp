@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/08 10:41:19 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/18 13:01:34 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/18 11:33:46 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,7 +26,6 @@
 #define C_LIGHT_GRAY "\001\033[37m\002" /* - Light gray color */
 #define C_BEIGE "\001\033[93m\002"		/* - Beige color */
 #define C_RESET "\001\033[0m\002"		/* - Reset color */
-#define C_BOLD "\033[1m"				/* - Bold color */
 
 /* BACKGROUND COLORS */
 #define BG_BLACK "\001\033[40m\002"		  /* - Black background */

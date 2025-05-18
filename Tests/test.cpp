@@ -1,25 +1,29 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   IncludeClasses.hpp                                 :+:      :+:    :+:   */
+/*   test.cpp                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/05/17 23:59:20 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/18 11:37:43 by qliso            ###   ########.fr       */
+/*   Created: 2025/05/18 12:10:58 by qliso             #+#    #+#             */
+/*   Updated: 2025/05/18 12:50:17 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#ifndef INCLUDECLASSES_HPP
-# define INCLUDECLASSES_HPP
+#include <string>
+#include <sstream>
+#include <iostream>
+#include <cstdarg>
 
-# include "Console.hpp"
-# include "DataStructures.hpp"
-# include "Lexer.hpp"
-# include "Parser.hpp"
-# include "CommonConfig.hpp"
-# include "LocationConfig.hpp"
-# include "ServerConfig.hpp"
-# include "ConfigBuilder.hpp"
+template < typename T >
+std::string	toStr(const T& x) { std::ostringstream oss; oss << x; return oss.str(); }
 
-#endif
+
+int main()
+{
+	
+	return (0);
+}
+
+// FATAL: CONFIG LEXING: config.conf(lline:ccolumn):  Unrecognized character 'c'
+// LogLevel, ConfigStep, filename, line, column, msg, explicit line
