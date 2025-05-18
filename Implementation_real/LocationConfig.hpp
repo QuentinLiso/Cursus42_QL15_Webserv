@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:23:51 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/18 18:37:39 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/19 00:48:07 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -40,7 +40,7 @@ private:
 	bool	checkCgiBin(const Directive* directive, const std::string& filePath);
 	bool	checkCgiDirectory(const Directive* directive, const std::string& filePath);
 	bool	setCgiPass(const Directive* directive);
-	void	inheritCommonFromServerConfig(const ServerConfig& serverConfig);
+	void	inheritCommonFromServerConfig(const Block* block, const ServerConfig& serverConfig);
 	
 	bool	error(const Directive* directive, const std::string& msg);
 	bool	error(const Block* block, const std::string& msg);

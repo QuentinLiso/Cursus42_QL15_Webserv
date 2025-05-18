@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:23:51 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/18 23:27:51 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/19 00:57:05 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -174,7 +174,7 @@ bool	LocationConfig::setCgiPass(const Directive* directive)
 	return (true);
 }
 
-void	LocationConfig::inheritCommonFromServerConfig(const ServerConfig& serverConfig)
+void	LocationConfig::inheritCommonFromServerConfig(const Block* block, const ServerConfig& serverConfig)
 {
 	_common.inherit(serverConfig.common());
 	if (!_alias.empty())
@@ -183,7 +183,7 @@ void	LocationConfig::inheritCommonFromServerConfig(const ServerConfig& serverCon
 	}
 	else if (_common.root().empty())
 	{
-		error("Empty root at server level is not covered by root or alias at location level " + _path);
+		error(block, "Empty root at server level is not covered by root or alias at location level");
 		_common.setValid(false);
 	}
 	else
@@ -192,7 +192,6 @@ void	LocationConfig::inheritCommonFromServerConfig(const ServerConfig& serverCon
 	}
 		
 }
-
 
 bool	LocationConfig::error(const Directive* directive, const std::string& msg)
 {
@@ -229,14 +228,14 @@ void	LocationConfig::warning(const std::string& msg)
 
 LocationConfig::LocationConfig(const ServerConfig& serverConfig) : _pathModifier(""), _path("/"), _alias(""), _cgiPass("")
 {
-	inheritCommonFromServerConfig(serverConfig);
+	inheritCommonFromServerConfig(NULL, serverConfig);
 	fillEmptyAllowedMethods();
 }
 
 LocationConfig::LocationConfig(const Block* block, const ServerConfig& serverConfig)
 {
 	parseLocationBlock(block, serverConfig);
-	inheritCommonFromServerConfig(serverConfig);
+	inheritCommonFromServerConfig(block, serverConfig);
 	fillEmptyAllowedMethods();
 }
 

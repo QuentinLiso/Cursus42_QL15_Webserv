@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/08 09:52:48 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/18 17:37:43 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/19 00:57:56 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -152,8 +152,10 @@ bool    Console::configLog(	Console::LogLevel level,
 		<< "(l" << line << ":c" << column << "): "
 		<< C_RESET
 		<< configStep << ": "
-		<< msg
-		<< " '" << explicitLine << "'";
+		<< msg;
+
+	if (!explicitLine.empty())
+		oss << " '" << explicitLine << "'";
 
 	std::cout << oss.str() << std::endl;
 	return (valid);
@@ -191,31 +193,55 @@ bool    Console::configLog(	Console::LogLevel level,
 
 bool	Console::error(const Directive* directive, const std::string& configStep, const std::string& msg)
 {
-	if (!directive)
-		return (false);
-
+	int line;
+	int column;
 	std::ostringstream oss;
-	std::vector<std::string>	args = directive->arguments;
 	
-	oss << directive->name;
-	for (size_t i = 0; i < args.size(); i++)	
-		oss << " " << args[i];
-	configLog(ERROR, directive->line, directive->column, configStep, msg, oss.str());
+	if (directive)
+	{
+		line = directive->line;
+		column = directive->column;
+		
+		std::vector<std::string>	args = directive->arguments;
+		
+		oss << directive->name;
+		for (size_t i = 0; i < args.size(); i++)	
+			oss << " " << args[i];
+	}
+	else
+	{
+		line = 0;
+		column = 0;
+		oss << "";
+	}
+	configLog(ERROR, line, column, configStep, msg, oss.str());
 	return (false);
 }
 
 bool	Console::error(const Block* block, const std::string& configStep, const std::string& msg)
 {
-	if (!block)
-		return (false);
-
+	int line;
+	int column;
 	std::ostringstream oss;
-	std::vector<std::string>	args = block->arguments;
 	
-	oss << block->name;
-	for (size_t i = 0; i < args.size(); i++)	
-		oss << " " << args[i];
-	configLog(ERROR, block->line, block->column, configStep, msg, oss.str());
+	if (block)
+	{
+		line = block->line;
+		column = block->column;
+		
+		std::vector<std::string>	args = block->arguments;
+		
+		oss << block->name;
+		for (size_t i = 0; i < args.size(); i++)	
+			oss << " " << args[i];
+	}
+	else
+	{
+		line = 0;
+		column = 0;
+		oss << "";
+	}
+	configLog(ERROR, line, column, configStep, msg, oss.str());
 	return (false);
 }
 

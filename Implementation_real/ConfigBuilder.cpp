@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:32:29 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/19 00:23:00 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/19 00:41:35 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,19 +23,22 @@ void	ConfigBuilder::loadFromAst(const std::vector<AConfigNode*>& ast)
 			Block*	block = dynamic_cast<Block*>(*it);
 			if (!block)
 			{
-				_valid = 
+				_valid = error("Dynamic cast to block of '" + (*it)->name + "' failed");
+				continue ;
 			}
-				throw std::runtime_error("Dynamic cast to block failed");
 			if (block->name != "server")
-				throw std::runtime_error("Expected 'server' block at top level");
+			{
+				_valid = error(block, "Expected 'server' block at top level");
+				continue ;
+			}
 			_servers.push_back(ServerConfig(block));
 			continue ;
 		}
-		throw std::runtime_error("Unrecognized server block at top ast level");
+		_valid = error("Unexpected non-block node at top level");
 	}
 }
 
-void	ConfigBuilder::validateIpPortDomains(void) const
+void	ConfigBuilder::validateIpPortDomains(void)
 {
 	IpPortDomainsMap	ipPortDomainsMap;			// std::map<std::pair<std::string, int>, std::set<std::string> >		=	map < <ip, port>, domains >
 		
@@ -49,15 +52,15 @@ void	ConfigBuilder::validateIpPortDomains(void) const
 		{
 			const std::string&	serverName = server.serverNames()[j];
 			if (ipPortDomains.insert(serverName).second == false)				// Throw if the given serverName is found in the vector of domains at the key ip/port
-				throw std::runtime_error("Duplicate server name " + serverName + " for host " + server.host() + ":" + convToStr(server.port().value));
+				_valid = error("Duplicate server name " + serverName + " for host " + server.host() + ":" + convToStr(server.port().value));
 		}
 
 		if (server.serverNames().empty() && !ipPortDomains.empty())
-			throw std::runtime_error("Server block with no server_name directive for host " + server.host() + ":" + convToStr(server.port().value) + " must be declared first in config file");
+			_valid = error("Server block with no server_name directive for host " + server.host() + ":" + convToStr(server.port().value) + " must be declared first in config file");
 	}
 }
 
-void	ConfigBuilder::checkZeroPorts(void) const
+void	ConfigBuilder::checkZeroPorts(void)
 {
 	const std::vector<const ServerConfig*> zerosConfigs = findConfigs("0.0.0.0");
 	if (zerosConfigs.empty())
@@ -67,7 +70,7 @@ void	ConfigBuilder::checkZeroPorts(void) const
 	for (size_t i = 0; i < zerosConfigs.size(); i++)
 	{
 		if (zeroPorts.insert(zerosConfigs[i]->port().value).second == false)
-			throw std::runtime_error("Duplicate listening port " + convToStr(zerosConfigs[i]->port().value) + " on default ip 0.0.0.0");
+			_valid = error("Duplicate listening port " + convToStr(zerosConfigs[i]->port().value) + " on default ip 0.0.0.0");
 	}
 	
 	const std::vector<const ServerConfig*> nonZerosConfigs = findOtherConfigs("0.0.0.0");
@@ -75,10 +78,9 @@ void	ConfigBuilder::checkZeroPorts(void) const
 	{
 		const ServerConfig* config = nonZerosConfigs[i];
 		if (zeroPorts.find(config->port().value) != zeroPorts.end())
-			throw std::runtime_error("Duplicate listening port " + convToStr(config->port().value) + " on default ip 0.0.0.0 and ip " + config->host());
+			_valid = error("Duplicate listening port " + convToStr(config->port().value) + " on default ip 0.0.0.0 and ip " + config->host());
 	}
 }
-
 
 bool	ConfigBuilder::error(const Directive* directive, const std::string& msg)
 {

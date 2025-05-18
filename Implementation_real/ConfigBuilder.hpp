@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:32:29 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/19 00:21:25 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/19 00:38:51 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,8 +30,8 @@ private:
 	bool						_valid;
 
 	void	loadFromAst(const std::vector<AConfigNode*>& ast);
-	void	validateIpPortDomains(void) const;
-	void	checkZeroPorts(void) const;
+	void	validateIpPortDomains(void);
+	void	checkZeroPorts(void);
 
 	bool	error(const Directive* directive, const std::string& msg);
 	bool	error(const Block* block, const std::string& msg);
