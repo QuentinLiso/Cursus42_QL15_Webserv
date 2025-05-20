@@ -1,0 +1,134 @@
+
+// class	HttpMethodsMap
+// {
+// 	private:
+// 		static const std::map<TStr, HttpMethods>	map;
+
+// 		static const std::map<TStr, HttpMethods>	buildMap(void)
+// 		{
+// 			std::map<TStr, HttpMethods>	methods;
+
+// 			methods["GET"] = HTTP_GET;
+// 			methods["POST"] = HTTP_POST;
+// 			methods["DELETE"] = HTTP_DELETE;
+// 			methods["PUT"] = HTTP_PUT;
+
+// 			return (methods);
+// 		}
+
+// 	public:
+// 		static bool	find(const TStr& _method) { return (map.find(_method) != map.end()); }
+// 		static bool	method(const TStr& _method, HttpMethods& out)
+// 		{
+// 			std::map<TStr, HttpMethods>::const_iterator it = map.find(_method);
+// 			if (it != map.end())
+// 			{
+// 				out = it->second;
+// 				return (true);
+// 			}
+// 			else
+// 				return (false);
+// 		}
+// };
+
+// const std::map<TStr, HttpMethods> HttpMethodsMap::map = HttpMethodsMap::buildMap();
+
+
+// template < typename Derived, typename TEnum >
+// class	IEnumMap
+// {
+// 	protected:
+// 		typedef	std::map<TStr, TEnum>	Map;
+
+// 	private:
+// 		static const Map&	getMap(void)
+// 		{
+// 			return (Derived::getMap());
+// 		}
+
+// 	public:
+// 		static bool	find(const TStr& str) { return (getMap().find(str) != getMap.end()); }
+// 		static bool	value(const TStr& str, TEnum& out)
+// 		{
+// 			typename Map::const_iterator it = getMap().find(str);
+// 			if (it != getMap().end())
+// 			{
+// 				out = it->second;
+// 				return (true);
+// 			}
+// 			else
+// 				return (false);
+// 		}
+// };
+
+// class	HttpMap : public IEnumMap<HttpMap, HttpMethods>
+// {
+// 	protected:
+// 		typename IEnumMap<HttpMap, HttpMethods>::Map;
+
+// 	private:		
+// 		 static void	buildMap(Map& map)
+// 		{
+// 			map["GET"] = HTTP_GET;
+// 			map["POST"] = HTTP_POST;
+// 			map["DELETE"] = HTTP_DELETE;
+// 			map["PUT"] = HTTP_PUT;
+// 		}
+
+// 	public:
+// 		static const Map& getMap(void)
+// 		{
+// 			static Map	map;
+
+// 			if (map.empty())
+// 				buildMap(map);
+// 			return (map);
+// 		}
+// };
+
+
+
+
+// class HttpMethodsList
+// {
+// 	// public:
+// 	// 	typedef	std::map<TStr, HttpMethods>		StrToHttpMap;
+// 	// 	typedef	std::map<HttpMethods, TStr>		HttpToStrMap;
+
+// 	private:
+// 		static const std::map<TStr, HttpMethods>	_strToHttpMethodMap;
+// 		static const std::map<HttpMethods, TStr> 	_httpMethodToStrMap;
+
+// 		static const std::map<TStr, HttpMethods>	buildStrToHttpMethod(void)
+// 		{
+// 			std::map<TStr, HttpMethods>	methods;
+
+// 			methods["GET"] = HTTP_GET;
+// 			methods["PUT"] = HTTP_PUT;
+// 			methods["DELETE"] = HTTP_DELETE;
+// 			methods["POST"] = HTTP_POST;
+
+// 			return (methods);
+// 		}
+
+// 		static const std::map<HttpMethods, TStr>	buildHttpMethodToStr(void)
+// 		{
+// 			std::map<HttpMethods, TStr>	methods;
+
+// 			methods[HTTP_GET] = "GET";
+// 			methods[HTTP_PUT] = "PUT";
+// 			methods[HTTP_DELETE] = "DELETE";
+// 			methods[HTTP_POST] = "POST";
+
+// 			return (methods);
+// 		}
+
+// 	public:
+		
+// 		static const std::map<TStr, HttpMethods>&	strToHttpMethodMap() { return _strToHttpMethodMap; }
+// 		static const std::map<HttpMethods, TStr>&	httpMethodToStrMap() { return _httpMethodToStrMap; }
+// };
+
+// const std::map<TStr, HttpMethods> 	HttpMethodsList::_strToHttpMethodMap = HttpMethodsList::buildStrToHttpMethod();
+// const std::map<HttpMethods, TStr> 	HttpMethodsList::_httpMethodToStrMap = HttpMethodsList::buildHttpMethodToStr();
+
