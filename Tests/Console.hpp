@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/08 09:52:46 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/19 16:53:32 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/22 17:18:23 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,7 +28,6 @@
 # include <cstring>
 # include <sys/stat.h>
 # include "Colors.hpp"
-# include "DataStructures.hpp"
 
 class Console
 {
@@ -87,6 +86,14 @@ public:
 	static void configLog(	Console::LogLevel level, 
 							int line,
 							int column,
+							const std::vector<std::string>& explicitLine,
+							const std::string& configStep,
+							const std::string& msg);
+	
+	static void configLog(	Console::LogLevel level, 
+							int line,
+							int column,
+							const std::string& name,
 							const std::vector<std::string>& explicitLine,
 							const std::string& configStep,
 							const std::string& msg);

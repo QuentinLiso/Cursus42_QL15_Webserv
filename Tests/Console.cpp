@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/08 09:52:48 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/20 08:52:11 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/22 17:16:29 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -175,6 +175,26 @@ void    Console::configLog(	Console::LogLevel level,
 	{
 		oss << " " << explicitLine[i];
 	}	
+	configLog(level, line, column, oss.str(), configStep, msg);
+}
+
+void    Console::configLog(	Console::LogLevel level, 
+							int line,
+							int column,
+							const std::string& name,
+							const std::vector<std::string>& explicitLine,
+							const std::string& configStep,
+							const std::string& msg)
+{
+	std::ostringstream	oss;
+	oss << name;
+	if (explicitLine.size() > 0)
+		oss << explicitLine[0];
+	for (size_t i = 1; i < explicitLine.size(); i++)
+	{
+		oss << " " << explicitLine[i];
+	}
+
 	configLog(level, line, column, oss.str(), configStep, msg);
 }
 
