@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:29:17 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/22 09:07:07 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/27 19:49:57 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -144,22 +144,40 @@ bool		containsDoubleDotsAccess(const std::string& str)
 
 void		removeDotPaths(std::string& str)
 {
+	if (str.empty() || str == "/")
+		return ;
+
 	std::vector<std::string>	segments;
 	std::istringstream			iss(str);
 	std::string					segment;
-	
+
+	bool	startingSlash = (str[0] == '/');
+	bool	trailingSlash = (str[str.size() - 1] == '/');
+
 	while (std::getline(iss, segment, '/'))
 	{
 		if (segment != "." && !segment.empty())
 			segments.push_back(segment);
 	}
-	
+
+	size_t	bytes = str.size();
 	str.clear();
-	for (size_t i = 0; i < segments.size(); i++)
-	str += "/" + segments[i];
+	str.reserve(bytes);
 	
+	if (startingSlash)
+		str += "/";
+
+	if (!segments.empty()) {
+		str += segments[0];
+		for (size_t i = 1; i < segments.size(); i++)
+			str += "/" + segments[i];
+	}
+
+	if (trailingSlash && !str.empty() && str[str.size() - 1] != '/')
+		str += "/";
+
 	if (str.empty())
-	str = "/";
+		str = "/";
 }
 
 void		normalizeFilepath(std::string& filepath)
@@ -238,4 +256,20 @@ bool	isExistingAndAccessibleFile(const std::string& filePath, int accessArgs)
 	return (true);
 }
 
+// HTTP METHODS
 
+void HttpMethodsMap::fillBiMap(BiMap<HttpMethods::Type>& bimap)
+{
+	bimap.add("GET", HttpMethods::GET);
+	bimap.add("POST", HttpMethods::POST);
+	bimap.add("DELETE", HttpMethods::DELETE);
+	bimap.add("PUT", HttpMethods::PUT);
+}
+
+const BiMap<HttpMethods::Type>&	HttpMethodsMap::map(void)
+{ 
+	static BiMap<HttpMethods::Type> bimap;
+	if (bimap.empty())
+		fillBiMap(bimap);
+	return (bimap);
+}

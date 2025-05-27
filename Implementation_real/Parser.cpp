@@ -6,20 +6,20 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:57:07 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/18 15:58:11 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/21 14:59:55 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Parser.hpp"
 
 // PRIVATE
-void	Parser::parseTokens(void)
+void			Parser::parseTokens(void)
 {
 	while (!isEofToken())
 		_ast.push_back(buildSingleAst());
 }
 
-bool	Parser::isEofToken(void) const
+bool			Parser::isEofToken(void) const
 {
 	return (_index >= _tokens.size() || _tokens[_index].type == TO_EndOfFile);
 }
@@ -55,7 +55,7 @@ AConfigNode*	Parser::buildSingleAst(void)
 	return (NULL);
 }
 
-Token	Parser::setStatement(std::vector<std::string>& args)
+Token			Parser::setStatement(std::vector<std::string>& args)
 {
 	Token	statement = _tokens[_index++];
 	while (!isEofToken() && _tokens[_index].type != TO_Semicolon && _tokens[_index].type != TO_OpenBrace)
@@ -70,7 +70,7 @@ Token	Parser::setStatement(std::vector<std::string>& args)
 }
 
 
-void	Parser::printNodes(const std::vector<AConfigNode*> node, size_t offset) const
+void			Parser::printNodes(const std::vector<AConfigNode*> node, size_t offset) const
 {
 	std::vector<AConfigNode*>::const_iterator	it = node.begin();
 	std::vector<AConfigNode*>::const_iterator	ite = node.end();
@@ -108,7 +108,7 @@ void	Parser::printNodes(const std::vector<AConfigNode*> node, size_t offset) con
 	}
 }
 
-void	Parser::deleteNode(AConfigNode* node)
+void			Parser::deleteNode(AConfigNode* node)
 {
 	if (!node)
 		return ;
@@ -142,13 +142,13 @@ Parser::~Parser(void)
 
 const std::vector<AConfigNode*>&	Parser::getAst(void) const { return _ast; }
 
-void	Parser::showAst(void) const
+void			Parser::showAst(void) const
 {
 	if (_valid)
 		printNodes(_ast);
 }
 
-void	Parser::checkValid(void) const
+void			Parser::checkValid(void) const
 {
 	if (_valid == false)
 		throw std::runtime_error("Parsing failed");

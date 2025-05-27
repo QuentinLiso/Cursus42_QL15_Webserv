@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:29:17 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/22 09:05:27 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/27 18:27:17 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -41,5 +41,17 @@ bool	isExistingAndAccessibleFile(const std::string& filePath, int accessArgs);
 
 
 # include "0_Utils.tpp"
+
+// HTTP METHODS MAP
+class	HttpMethodsMap
+{
+	private:
+		static void fillBiMap(BiMap<HttpMethods::Type>& bimap);
+
+	public:
+		static const BiMap<HttpMethods::Type>&	map(void);
+};
+
+
 
 #endif

@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/08 09:52:48 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/22 17:16:29 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/26 23:51:23 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -189,7 +189,7 @@ void    Console::configLog(	Console::LogLevel level,
 	std::ostringstream	oss;
 	oss << name;
 	if (explicitLine.size() > 0)
-		oss << explicitLine[0];
+		oss << " " << explicitLine[0];
 	for (size_t i = 1; i < explicitLine.size(); i++)
 	{
 		oss << " " << explicitLine[i];
