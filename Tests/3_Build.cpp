@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/22 08:56:11 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/27 19:50:20 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/28 23:15:27 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,13 +24,20 @@ ElementConfig::ElementConfig(Statement* statement)
 			_error(0)
 {}
 
-ElementConfig::ElementConfig(int line, int column, const TStr& name, const TStrVect& args)
-		: 	_line(line),
-			_column(column), 
-			_name(name), 
-			_args(args), 
-			_error(0)
-{}
+ElementConfig::ElementConfig(const ElementConfig& c) : _line(c._line), _column(c._column), _name(c._name), _args(c._args), _error(c._error) {}
+
+ElementConfig& ElementConfig::operator=(const ElementConfig& c)
+{
+	if (this != &c)
+	{
+		_line = c._line;
+		_column = c._column;
+		_name = c._name;
+		_args = c._args;
+		_error = c._error;
+	}
+	return (*this);
+}
 
 ElementConfig::~ElementConfig(void) {}
 
@@ -121,6 +128,26 @@ int	Listen::setIp(const std::string& ip)
 
 Listen::Listen(void) :  ElementConfig(), _host(""), _port(0), _set(false) {}
 
+Listen::Listen(const Listen& c) : ElementConfig(c), _host(c._host), _port(c._port), _set(c._set) {}
+
+Listen& Listen::operator=(const Listen& c)
+{
+	if (this != &c)
+	{
+		ElementConfig::operator=(c);
+		_host = c._host;
+		_port = c._port;
+		_set = c._set;
+	}
+	return (*this);
+}
+
+Listen::~Listen(void) {}
+
+const TStr&	Listen::getHost(void) const { return _host; }
+ushort	Listen::getPort(void) const { return _port; }
+bool	Listen::isSet(void) const { return _set; }
+
 int	Listen::set(Statement* statement)
 {
 	updateElementConfig(statement);
@@ -130,7 +157,7 @@ int	Listen::set(Statement* statement)
 	return (setHostAndPort(statement->getArgs()));
 }
 
-Listen::~Listen(void) {}
+
 
 std::ostream&	Listen::print(std::ostream& o, size_t indent) const
 {
@@ -158,7 +185,24 @@ int	ServerName::addServerNames(const TStrVect& args)
 
 ServerName::ServerName(void) : ElementConfig(), _serverNames(), _set(false) {}
 
+ServerName::ServerName(const ServerName& c) : ElementConfig(c), _serverNames(c._serverNames), _set(c._set) {}
+
+ServerName& ServerName::operator=(const ServerName& c)
+{
+	if (this != &c)
+	{
+		ElementConfig::operator=(c);
+		_serverNames = c._serverNames;
+		_set = c._set;
+	}
+	return (*this);
+}
+
 ServerName::~ServerName(void) {}
+
+const std::set<TStr>& ServerName::getServerNames(void) const { return _serverNames; }
+bool	ServerName::hasServerName(const TStr& name) const { return _serverNames.find(name) != _serverNames.end(); }
+bool	ServerName::isSet(void) const { return _set; }
 
 int		ServerName::set(Statement* statement)
 {
@@ -203,7 +247,23 @@ int	LocationPath::setPath(const TStrVect& args)
 
 LocationPath::LocationPath(void) : ElementConfig(), _path(""), _set(false) {}
 
+LocationPath::LocationPath(const LocationPath& c) : ElementConfig(c), _path(c._path), _set(c._set) {}
+
+LocationPath& LocationPath::operator=(const LocationPath& c)
+{
+	if (this != &c)
+	{
+		ElementConfig::operator=(c);
+		_path = c._path;
+		_set = c._set;
+	}
+	return (*this);
+}
+
 LocationPath::~LocationPath(void) {}
+
+const TStr& LocationPath::getPath(void) const { return _path; };
+bool		LocationPath::isSet(void) const { return _set; };
 
 int	LocationPath::set(Statement* statement)
 {
@@ -226,26 +286,42 @@ int	Alias::setFolderPath(const TStrVect& args)
 	if (args.size() != 1 || args[0].empty())
 		return (error("Alias directive must have exactly 1 non-empty argument"));
 	
-	const TStr& folderPath = args[0];
+	_folderPath = args[0];
 	int errorFound = 0;
 	
-	if (folderPath[0] != '/')
-		errorFound = error("Alias directive must start with a '/'");
-	if (!isValidFilepath(folderPath))
+	if (_folderPath[0] != '/' && _folderPath[_folderPath.size() - 1] != '/')
+		errorFound = error("Alias directive must start and end with a '/'");
+	if (!isValidFilepath(_folderPath))
 		errorFound = error("Invalid folder path character found in alias directive");
-	if (containsDoubleDotsAccess(folderPath))
+	if (containsDoubleDotsAccess(_folderPath))
 		errorFound = error("Alias directive cannot have '..' as path access inside the provided argument");
 	// if (!isExecutableDirectory(folderPath))
 	// 	errorFound = error("Alias directive folder path is not an accessible directory");
-	
-	_folderPath = folderPath;
-	normalizeFilepath(_folderPath);
+
+	removeStrDuplicateChar(_folderPath, '/');
+	removeDotPaths(_folderPath);
 	return (errorFound);
 }
 
 Alias::Alias(void) : ElementConfig(), _folderPath(""), _set(false) {}
 
+Alias::Alias(const Alias& c) : ElementConfig(c), _folderPath(c._folderPath), _set(c._set) {}
+
+Alias& Alias::operator=(const Alias& c)
+{
+	if (this != &c)
+	{
+		ElementConfig::operator=(c);
+		_folderPath = c._folderPath;
+		_set = c._set;
+	}
+	return (*this);
+}
+
 Alias::~Alias(void) {}
+
+const TStr& Alias::getFolderPath(void) const { return _folderPath; }
+bool	Alias::isSet(void) const { return _set; }
 
 int	Alias::set(Statement* statement)
 {
@@ -279,14 +355,46 @@ int	AllowedMethods::addAllowedMethods(const TStrVect& args)
 			continue ;
 		}
 		if (_allowedMethods.insert(method).second == false)
+		{
 			warning("Duplicate HTTP method '" + arg + "' found in allowed_methods directive");
+			continue ;
+		}
+		_allowedMethodsStr.insert(arg);
 	}
 	return (0);
 }
 
 AllowedMethods::AllowedMethods(void) : ElementConfig(), _allowedMethods(), _set(false) {}
 
+AllowedMethods::AllowedMethods(const AllowedMethods& c) : ElementConfig(c), _allowedMethods(c._allowedMethods), _set(c._set) {}
+
+AllowedMethods& AllowedMethods::operator=(const AllowedMethods& c)
+{
+	if (this != &c)
+	{
+		ElementConfig::operator=(c);
+		_allowedMethods = c._allowedMethods;
+		_allowedMethodsStr = c._allowedMethodsStr;
+		_set = c._set;
+	}
+	return (*this);
+}
+
 AllowedMethods::~AllowedMethods(void) {}
+
+const std::set<HttpMethods::Type>& AllowedMethods::getAllowedMethods(void) const { return _allowedMethods; }
+bool	AllowedMethods::isAllowedMethod(HttpMethods::Type method) const { return _allowedMethods.find(method) != _allowedMethods.end(); }
+bool	AllowedMethods::isAllowedMethod(const TStr& method) const { return _allowedMethodsStr.find(method) != _allowedMethodsStr.end(); }
+bool	AllowedMethods::isSet(void) const { return _set; }
+
+void	AllowedMethods::setDefaultMethods(void)
+{
+	_allowedMethods.insert(HttpMethods::GET);
+	_allowedMethods.insert(HttpMethods::POST);
+	_allowedMethodsStr.insert("GET");
+	_allowedMethodsStr.insert("POST");
+	_set = true;
+}
 
 int	AllowedMethods::set(Statement* statement)
 {
@@ -363,9 +471,26 @@ int	CgiPass::checkCgiDirectory(const TStr& filePath)
 	return (0);
 }
 
-CgiPass::CgiPass(void) : ElementConfig(), _filePath(""), _set(false) {}
+CgiPass::CgiPass(void) : ElementConfig(), _filePath(""), _fullFilePath(""), _set(false) {}
+
+CgiPass::CgiPass(const CgiPass& c) : ElementConfig(c), _filePath(c._filePath), _fullFilePath(c._fullFilePath), _set(c._set) {}
+
+CgiPass& CgiPass::operator=(const CgiPass& c)
+{
+	if (this != &c)
+	{
+		ElementConfig::operator=(c);
+		_filePath = c._filePath;
+		_set = c._set;
+	}
+	return (*this);
+}
 
 CgiPass::~CgiPass(void) {}
+
+const TStr& CgiPass::getFilePath(void) const { return _filePath; }
+const TStr& CgiPass::getFullFilePath(void) const { return _fullFilePath; }
+bool		CgiPass::isSet(void) const { return _set; }
 
 int	CgiPass::set(Statement* statement)
 {
@@ -376,9 +501,18 @@ int	CgiPass::set(Statement* statement)
 	return (setFolderPath(statement->getArgs()));
 }
 
+int CgiPass::setFullPath(const TStr& configFullPath)
+{
+	_fullFilePath = joinPaths(configFullPath, _filePath);
+
+	int	errorFound = checkCgiBin(_fullFilePath);
+	errorFound = checkCgiDirectory(_fullFilePath);
+	return (errorFound);
+}
+
 std::ostream&	CgiPass::print(std::ostream& o, size_t indent) const
 {
-	o << TStr(indent, '-') << "Cgi Pass: " << _filePath << std::endl;
+	o << TStr(indent, '-') << "Cgi Pass: " << _filePath << "\t-> Full path : " << _fullFilePath << std::endl;
 	return (o);
 }
 
@@ -408,7 +542,23 @@ int		Root::setFolderPath(const TStrVect& args)
 
 Root::Root(void) : ElementConfig(), _folderPath(""), _set(false) {}
 
+Root::Root(const Root& c) : ElementConfig(c), _folderPath(c._folderPath), _set(c._set) {}
+
+Root& Root::operator=(const Root& c)
+{
+	if (this != &c)
+	{
+		ElementConfig::operator=(c);
+		_folderPath = c._folderPath;
+		_set = c._set;
+	}
+	return (*this);
+}
+
 Root::~Root(void) {}
+
+const TStr& Root::getFolderPath(void) const { return _folderPath; }
+bool		Root::isSet(void) const { return _set; }
 
 int		Root::set(Statement* statement)
 {
@@ -450,7 +600,23 @@ int		Index::setFileNames(const TStrVect& args)
 
 Index::Index(void) : ElementConfig(), _fileNames(), _set(false) {}
 
+Index::Index(const Index& c) : ElementConfig(c), _fileNames(c._fileNames), _set(c._set) {}
+
+Index& Index::operator=(const Index& c)
+{
+	if (this != &c)
+	{
+		ElementConfig::operator=(c);
+		_fileNames = c._fileNames;
+		_set = c._set;
+	}
+	return (*this);
+}
+
 Index::~Index(void) {}
+
+const	TStrVect& Index::getFileNames(void) const { return _fileNames; }
+bool	Index::isSet(void) const { return _set; }
 
 int		Index::set(Statement* statement)
 {
@@ -495,7 +661,23 @@ int Autoindex::setAutoIndex(const TStrVect& args)
 
 Autoindex::Autoindex(void) : ElementConfig(), _active(false), _set(false) {}
 
+Autoindex::Autoindex(const Autoindex& c) : ElementConfig(c), _active(c._active), _set(c._set) {}
+
+Autoindex& Autoindex::operator=(const Autoindex& c)
+{
+	if (this != &c)
+	{
+		ElementConfig::operator=(c);
+		_active = c._active;
+		_set = c._set;
+	}
+	return (*this);
+}
+
 Autoindex::~Autoindex(void) {}
+
+bool	Autoindex::isActive(void) const { return _active; }
+bool	Autoindex::isSet(void) const { return _set; };
 
 int Autoindex::set(Statement* statement)
 {
@@ -556,7 +738,44 @@ int	ErrorPage::addErrorPages(const TStrVect& args)
 
 ErrorPage::ErrorPage(void) : ElementConfig(), _errorPages() {}
 
+ErrorPage::ErrorPage(const ErrorPage& c) : ElementConfig(c), _errorPages(c._errorPages) {}
+
+ErrorPage& ErrorPage::operator=(const ErrorPage& c)
+{
+	if (this != &c)
+	{
+		ElementConfig::operator=(c);
+		_errorPages = c._errorPages;
+	}
+	return (*this);
+}
+
 ErrorPage::~ErrorPage(void) {}
+
+const std::map<ushort, TStr>& ErrorPage::getErrorPages(void) const { return _errorPages; }
+
+const TStr& ErrorPage::getErrorPage(ushort errnum) const
+{ 
+	return (_errorPages.find(errnum)->second);
+}
+
+bool	ErrorPage::isSet(void) const { return !_errorPages.empty(); }
+
+void		ErrorPage::inheritErrorPages(const ErrorPage& c)
+{
+	if (!c.isSet())
+		return ;
+
+	std::map<ushort, TStr>::const_iterator it = c._errorPages.begin();
+	std::map<ushort, TStr>::const_iterator ite = c._errorPages.end();
+	
+	for (; it != ite; it++)
+	{
+		std::map<ushort, TStr>::const_iterator	key = _errorPages.find(it->first);
+		if (key == _errorPages.end())
+			_errorPages[key->first] = key->second;
+	}
+}
 
 int		ErrorPage::set(Statement* statement)
 {
@@ -591,13 +810,30 @@ int	ClientMaxBodySize::setBytes(const TStrVect& args)
 
 ClientMaxBodySize::ClientMaxBodySize(void) : ElementConfig(), _maxBytes(8192), _set(false) {}
 
+ClientMaxBodySize::ClientMaxBodySize(const ClientMaxBodySize& c) : ElementConfig(c), _maxBytes(c._maxBytes), _set(c._set) {}
+
+ClientMaxBodySize& ClientMaxBodySize::operator=(const ClientMaxBodySize& c)
+{
+	if (this != &c)
+	{
+		ElementConfig::operator=(c);
+		_maxBytes = c._maxBytes;
+		_set = c._set;
+	}
+	return (*this);
+}
+
 ClientMaxBodySize::~ClientMaxBodySize(void) {}
+
+size_t	ClientMaxBodySize::getMaxBytes(void) const { return _maxBytes; }
+bool	ClientMaxBodySize::isSet(void) const { return _set; }
 
 int	ClientMaxBodySize::set(Statement* statement)
 {
 	updateElementConfig(statement);
 	if (_set)
 		return (error("Duplicate client max body size directive found in the same block"));
+	_set = true;
 	return (setBytes(statement->getArgs()));
 }
 
@@ -629,6 +865,7 @@ LocationConfig::LocationConfig(Statement* statement)
 LocationConfig::~LocationConfig(void) {}
 
 const LocationPath&			LocationConfig::getLocationPath(void) const { return _locationPath; }
+const TStr&					LocationConfig::getFullPath(void) const { return _fullPath; }
 const Alias&				LocationConfig::getAlias(void) const { return _alias; }
 const AllowedMethods&		LocationConfig::getAllowedMethods(void) const { return _allowedMethods; }
 const CgiPass&				LocationConfig::getCgiPass(void) const { return _cgiPass; }
@@ -639,6 +876,7 @@ const ErrorPage&			LocationConfig::getErrorPage(void) const { return _errorPage;
 const ClientMaxBodySize&	LocationConfig::getClientMaxBodySize(void) const { return _clientMaxBodySize; }
 
 int	LocationConfig::setLocationPath(Statement* statement) { return(_locationPath.set(statement)); }
+void LocationConfig::setFullPath(void) { _fullPath = (_alias.isSet() ? _alias.getFolderPath() : joinPaths(_root.getFolderPath(), _locationPath.getPath())); }
 int	LocationConfig::setAlias(Statement* statement) { return (_alias.set(statement)); }
 int	LocationConfig::setAllowedMethods(Statement* statement) { return (_allowedMethods.set(statement)); }
 int	LocationConfig::setCgiPass(Statement* statement) { return (_cgiPass.set(statement)); }
@@ -672,10 +910,40 @@ int	LocationConfig::setDirective(Statement* statement)
 	return ( (this->*(it->second))(statement) );
 }
 
+int	LocationConfig::inheritFromServerConfig(ServerConfig* serverConfig)
+{
+	if (!_alias.isSet() && !_root.isSet())
+		_root = serverConfig->getRoot();
+	if (!_index.isSet())
+		_index = serverConfig->getIndex();
+	if (!_autoindex.isSet())
+		_autoindex = serverConfig->getAutoindex();
+	_errorPage.inheritErrorPages(serverConfig->getErrorPage());
+	if (!_clientMaxBodySize.isSet())
+		_clientMaxBodySize = serverConfig->getClientMaxBodySize();
+	return (0);
+}
+
+int	LocationConfig::validLocationConfig(void)
+{
+	if (!_alias.isSet() && !_root.isSet())
+		return (error("Empty root at server level is not covered by root or alias at location level"));
+	
+	setFullPath();
+	
+	if (!isExecutableDirectory(_fullPath))
+		return (error("Location full path '" + _fullPath + "' is not an executable directory"));
+	
+	if (!_allowedMethods.isSet())
+		_allowedMethods.setDefaultMethods();
+	return (0);
+}
+
 std::ostream&	LocationConfig::print(std::ostream& o, size_t indent) const
 {
 	o << TStr(indent, '-') << "Location: " << std::endl;
 	_locationPath.print(o, indent + 3);
+	o << TStr(indent + 3, '-') << "Full path : " << _fullPath << std::endl;
 	_alias.print(o, indent + 3);
 	_allowedMethods.print(o, indent + 3);
 	_cgiPass.print(o, indent + 3);
@@ -716,6 +984,7 @@ const Root&				ServerConfig::getRoot			(void) const { return _root; }
 const Index&			ServerConfig::getIndex		(void) const { return _index; }
 const Autoindex& 		ServerConfig::getAutoindex	(void) const { return _autoindex; }
 const ErrorPage&		ServerConfig::getErrorPage	(void) const { return _errorPage; }
+const ClientMaxBodySize&	ServerConfig::getClientMaxBodySize(void) const { return _clientMaxBodySize; }
 const std::vector<LocationConfig*>	ServerConfig::getLocations(void) const { return _locations; }
 
 int	ServerConfig::setListen(Statement* statement) { return (_listen.set(statement)); }
@@ -724,7 +993,7 @@ int	ServerConfig::setRoot(Statement* statement) { return (_root.set(statement));
 int	ServerConfig::setIndex(Statement* statement) { return (_index.set(statement)); }
 int	ServerConfig::setAutoindex(Statement* statement) { return (_autoindex.set(statement)); }
 int	ServerConfig::setErrorPage(Statement* statement) { return (_errorPage.set(statement)); }
-
+int	ServerConfig::setClientMaxBodySize(Statement* statement) { return (_clientMaxBodySize.set(statement)); }
 
 int	ServerConfig::setDirective(Statement* statement)
 {
@@ -737,6 +1006,7 @@ int	ServerConfig::setDirective(Statement* statement)
 		setDirectiveMap["index"] = &ServerConfig::setIndex;
 		setDirectiveMap["autoindex"] = &ServerConfig::setAutoindex;
 		setDirectiveMap["error_page"] = &ServerConfig::setErrorPage;
+		setDirectiveMap["client_max_body_size"] = &ServerConfig::setClientMaxBodySize;
 	}
 
 	std::map<TStr, int (ServerConfig::*)(Statement*)>::const_iterator	it = setDirectiveMap.find(statement->getName());
@@ -753,6 +1023,14 @@ void	ServerConfig::addLocation(LocationConfig* locationConfig)
 	_locations.push_back(locationConfig);
 }
 
+void	ServerConfig::makeLocationsInhertiance(void)
+{
+	for (size_t i = 0; i < _locations.size(); i++)
+	{
+		_locations[i]->inheritFromServerConfig(this);
+		_locations[i]->validLocationConfig();
+	}
+}
 
 std::ostream&		ServerConfig::print(std::ostream& o, size_t indent = 0) const
 {
@@ -763,6 +1041,7 @@ std::ostream&		ServerConfig::print(std::ostream& o, size_t indent = 0) const
 	_index.print(o, indent + 3);
 	_autoindex.print(o, indent + 3);
 	_errorPage.print(o, indent + 3);
+	_clientMaxBodySize.print(o, indent + 3);
 	for (size_t i = 0; i < _locations.size(); i++)
 		_locations[i]->print(o, indent + 3);
 	return (o);
@@ -813,6 +1092,7 @@ ServerConfig* 	Builder::buildServerConfig(Statement* statement)
 		else if (child->getStatementType() == Statement::DIRECTIVE)
 			serverConfig->setDirective(child);
 	}
+	serverConfig->makeLocationsInhertiance();
 	return (serverConfig);
 }
 

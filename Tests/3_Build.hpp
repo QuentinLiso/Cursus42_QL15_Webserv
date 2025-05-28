@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/22 08:45:05 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/27 19:14:11 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/28 23:14:23 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,7 +31,8 @@ class	ElementConfig
 	public:
 		ElementConfig(void);
 		ElementConfig(Statement* statement);
-		ElementConfig(int line, int column, const TStr& name, const TStrVect& args);
+		ElementConfig(const ElementConfig& c);
+		ElementConfig& operator=(const ElementConfig& c);
 		virtual ~ElementConfig(void);
 
 		int					getLine(void) const;
@@ -61,8 +62,14 @@ class	Listen : public ElementConfig
 
 	public:
 		Listen(void);
+		Listen(const Listen& c);
+		Listen& operator=(const Listen& c);
 		~Listen(void);
 		
+		const TStr&	getHost(void) const;
+		ushort	getPort(void) const;
+		bool	isSet(void) const;
+
 		int			set(Statement* statement);
 		virtual std::ostream&	print(std::ostream& o, size_t indent) const;
 };
@@ -77,8 +84,14 @@ class	ServerName : public ElementConfig
 
 	public:
 		ServerName(void);
+		ServerName(const ServerName& c);
+		ServerName& operator=(const ServerName& c);
 		~ServerName(void);
 
+		const std::set<TStr>& getServerNames(void) const;
+		bool	hasServerName(const TStr& name) const;
+		bool	isSet(void) const;
+		
 		int	set(Statement* statement);
 		virtual std::ostream&	print(std::ostream& o, size_t indent) const;
 };
@@ -94,7 +107,12 @@ class	LocationPath : public ElementConfig
 
 	public:
 		LocationPath(void);
+		LocationPath(const LocationPath& c);
+		LocationPath& operator=(const LocationPath& c);
 		~LocationPath(void);
+
+		const TStr& getPath(void) const;
+		bool		isSet(void) const;
 
 		int		set(Statement* statement);
 		virtual std::ostream& print(std::ostream& o, size_t indent) const;
@@ -110,7 +128,12 @@ class	Alias : public ElementConfig
 
 	public:
 		Alias(void);
+		Alias(const Alias& c);
+		Alias& operator=(const Alias&c);
 		~Alias(void);
+
+		const TStr& getFolderPath(void) const;
+		bool	isSet(void) const;
 
 		int	set(Statement* statement);
 		virtual std::ostream&	print(std::ostream& o, size_t indent) const;
@@ -121,14 +144,23 @@ class	AllowedMethods : public ElementConfig
 	private:
 
 		std::set<HttpMethods::Type>	_allowedMethods;
+		std::set<TStr>				_allowedMethodsStr;
 		bool						_set;
 
 		int	addAllowedMethods(const TStrVect& args);
 		
 	public:
 		AllowedMethods(void);
+		AllowedMethods(const AllowedMethods& c);
+		AllowedMethods& operator=(const AllowedMethods& c);
 		~AllowedMethods(void);
 
+		const std::set<HttpMethods::Type>& getAllowedMethods(void) const;
+		bool	isAllowedMethod(HttpMethods::Type method) const;
+		bool	isAllowedMethod(const TStr& method) const;
+		bool	isSet(void) const;
+
+		void	setDefaultMethods(void);
 		int	set(Statement* statement);
 		virtual std::ostream&	print(std::ostream& o, size_t indent) const;
 };
@@ -137,6 +169,7 @@ class	CgiPass : public ElementConfig
 {
 	private:
 		TStr	_filePath;
+		TStr	_fullFilePath;
 		bool	_set;
 		
 		int	setFolderPath(const TStrVect& args);
@@ -145,10 +178,16 @@ class	CgiPass : public ElementConfig
 
 	public:
 		CgiPass(void);
+		CgiPass(const CgiPass& c);
+		CgiPass& operator=(const CgiPass& c);
 		~CgiPass(void);
 
+		const TStr& getFilePath(void) const;
+		const TStr& getFullFilePath(void) const;
+		bool		isSet(void) const;
+
 		int		set(Statement* statement);
-		
+		int		setFullPath(const TStr& configFullPath);
 		virtual std::ostream&	print(std::ostream& o, size_t indent) const;
 };
 
@@ -164,7 +203,12 @@ class	Root : public ElementConfig
 
 	public:
 		Root(void);
+		Root(const Root& c);
+		Root& operator=(const Root& c);
 		~Root(void);
+
+		const TStr& getFolderPath(void) const;
+		bool		isSet(void) const;
 
 		int		set(Statement* statement);
 		virtual std::ostream&	print(std::ostream& o, size_t indent) const;
@@ -174,15 +218,23 @@ class	Index : public ElementConfig
 {
 	private:
 		TStrVect	_fileNames;
+		TStrVect	_fullFileNames; // TO IMPLEMENT (constructor)
 		bool		_set;
 
 		int		setFileNames(const TStrVect& args);
 
 	public:
 		Index(void);
+		Index(const Index& c);
+		Index& operator=(const Index& c);
 		~Index(void);
 
+		const TStrVect& getFileNames(void) const;
+		const TStrVect& getFullFileNames(void) const; // TO IMPLEMENT
+		bool	isSet(void) const;
+
 		int		set(Statement* statement);
+		int		setFullFileNames(const TStr& configFullPath); // TO IMPLEMENT
 		virtual std::ostream&	print(std::ostream& o, size_t indent) const;
 };
 
@@ -196,7 +248,12 @@ class	Autoindex : public ElementConfig
 		
 	public:
 		Autoindex(void);
+		Autoindex(const Autoindex& c);
+		Autoindex& operator=(const Autoindex& c);
 		~Autoindex(void);
+
+		bool	isActive(void) const;
+		bool	isSet(void) const;
 
 		int		set(Statement* statement);
 		virtual std::ostream&	print(std::ostream& o, size_t indent) const;
@@ -206,15 +263,26 @@ class	ErrorPage : public ElementConfig
 {
 	private:
 		std::map<ushort, TStr>	_errorPages;
+		std::map<ushort, TStr>	_errorPagesFullPath; // TO IMPLEMENT (constructor)
 
 		int	checkValidUri(const TStr& uri);
 		int	addErrorPages(const TStrVect& args);
 
+
 	public:
 		ErrorPage(void);
+		ErrorPage(const ErrorPage& c);
+		ErrorPage& operator=(const ErrorPage& c);
 		~ErrorPage(void);
+
+		const std::map<ushort, TStr>& getErrorPages (void) const;
+		const TStr& getErrorPage(ushort errnum) const;
+		const TStr& getErrorPageFullPath(ushort errnum) const; // TO IMPLEMENT
+		bool isSet(void) const;
 		
-		int	set(Statement* statement);
+		void	inheritErrorPages(const ErrorPage& c);
+		int		set(Statement* statement);
+		int		setFullPath(const TStr& configFullPath); // TO IMPLEMENT
 		virtual std::ostream&	print(std::ostream& o, size_t indent) const;
 };
 
@@ -228,32 +296,41 @@ class	ClientMaxBodySize : public ElementConfig
 
 	public:
 		ClientMaxBodySize(void);
+		ClientMaxBodySize(const ClientMaxBodySize& c);
+		ClientMaxBodySize& operator=(const ClientMaxBodySize& c);
 		~ClientMaxBodySize(void);
+
+		size_t	getMaxBytes(void) const;
+		bool	isSet(void) const;
 
 		int	set(Statement* statement);
 		virtual std::ostream&	print(std::ostream& o, size_t indent) const;
 };
 
 
+class ServerConfig;
 
 class	LocationConfig : public ElementConfig
 {
 	private:
-		LocationPath		_locationPath;
-		Alias				_alias;
-		AllowedMethods		_allowedMethods;
+		LocationPath		_locationPath;//OK
+		TStr				_fullPath;//OK
+		Alias				_alias;//OK
+		AllowedMethods		_allowedMethods;//OK
 		CgiPass				_cgiPass;
-		Root				_root;
+
+		Root				_root;//OK
 		Index				_index;
-		Autoindex			_autoindex;
+		Autoindex			_autoindex;//OK
 		ErrorPage			_errorPage;
-		ClientMaxBodySize	_clientMaxBodySize;
+		ClientMaxBodySize	_clientMaxBodySize;//OK
 
 	public:
 		LocationConfig(Statement* statement);
 		virtual ~LocationConfig(void);
 
 		const LocationPath&			getLocationPath(void) const;
+		const TStr&					getFullPath(void) const;
 		const Alias&				getAlias(void) const;
 		const AllowedMethods&		getAllowedMethods(void) const;
 		const CgiPass&				getCgiPass(void) const;
@@ -264,6 +341,7 @@ class	LocationConfig : public ElementConfig
 		const ClientMaxBodySize&	getClientMaxBodySize(void) const;
 
 		int	setLocationPath(Statement* statement);
+		void	setFullPath(void);
 		int	setAlias(Statement* statement);
 		int	setAllowedMethods(Statement* statement);
 		int	setCgiPass(Statement* statement);
@@ -274,6 +352,9 @@ class	LocationConfig : public ElementConfig
 		int	setClientMaxBodySize(Statement* statement);
 		
 		int	setDirective(Statement* statement);
+
+		int	inheritFromServerConfig(ServerConfig* serverConfig);
+		int	validLocationConfig(void);
 
 		std::ostream&	print(std::ostream& o, size_t indent) const;
 };
@@ -288,6 +369,8 @@ class	ServerConfig : public ElementConfig
 		Index		_index;
 		Autoindex	_autoindex;
 		ErrorPage	_errorPage;
+		ClientMaxBodySize _clientMaxBodySize;
+		
 		std::vector<LocationConfig*>	_locations;
 		
 	public:
@@ -300,6 +383,7 @@ class	ServerConfig : public ElementConfig
 		const Index&			getIndex		(void) const;
 		const Autoindex& 		getAutoindex	(void) const;
 		const ErrorPage&		getErrorPage	(void) const;
+		const ClientMaxBodySize& getClientMaxBodySize(void) const;
 		const std::vector<LocationConfig*>	getLocations(void) const;
 
 		int	setListen(Statement* statement);
@@ -308,9 +392,11 @@ class	ServerConfig : public ElementConfig
 		int	setIndex(Statement* statement);
 		int	setAutoindex(Statement* statement);
 		int	setErrorPage(Statement* statement);
+		int	setClientMaxBodySize(Statement* statement);
 
 		int	setDirective(Statement* statement);
 		void	addLocation(LocationConfig* locationConfig);
+		void	makeLocationsInhertiance(void);
 
 		std::ostream&	print(std::ostream& o, size_t indent) const;
 };
