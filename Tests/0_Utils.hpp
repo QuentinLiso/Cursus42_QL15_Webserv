@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:29:17 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/27 18:27:17 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/30 00:44:39 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,7 +21,10 @@ std::vector<std::string>    split(const std::string &str, const std::string& del
 bool	strToBytes(std::string const& val, size_t& out, size_t maxBytes = 104857600U);
 bool	fileToStr(const std::string& filename, TStr& out);
 char	safeStrIndex(const TStr& str, size_t i);
+void	toLowerStr(TStr& str);
+
 std::ostream& operator<<(std::ostream& o, const TStrVect& vect);
+
 
 // Filepath utilities
 std::string filepathSpecials(void);

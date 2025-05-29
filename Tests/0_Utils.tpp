@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:29:17 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/22 12:46:29 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/29 15:55:56 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,6 +14,7 @@
 # define UTILS_TPP
 
 # include "Includes.hpp"
+
 
 // Some utilities
 template < typename T >

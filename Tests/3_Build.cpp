@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/22 08:56:11 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/28 23:15:27 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/30 00:52:26 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -56,6 +56,14 @@ void			ElementConfig::updateElementConfig(Statement* statement)
 	_args = statement->getArgs();
 }
 
+void			ElementConfig::updateElementConfig(int line, int column, const TStr& name, const TStrVect& args)
+{
+	_line = line;
+	_column = column;
+	_name = name;
+	_args = args;
+}
+
 int				ElementConfig::error(const TStr& msg)
 {
 	Console::configLog(Console::ERROR, _line, _column, _name, _args, "BUILDING", msg);
@@ -75,7 +83,7 @@ void			ElementConfig::warning(const TStr& msg)
 
 // ===== LISTEN 
 
-int	Listen::setHostAndPort(const TStrVect& args)
+int	Listen::setIPAndPort(const TStrVect& args)
 {
 	if (args.size() != 1)
 		return(error("Invalid number of arguments for listen directive"));
@@ -84,7 +92,8 @@ int	Listen::setHostAndPort(const TStrVect& args)
 	if (sep == std::string::npos)
 	{
 		warning("Server listen directive has no IP address defined, adding '0.0.0.0' by default");
-		_host = "0.0.0.0";
+		_IP = "0.0.0.0";
+		_IPHostByteOrder = 0;
 		return (setPort(args[0]));
 	}
 	else
@@ -97,46 +106,63 @@ int	Listen::setHostAndPort(const TStrVect& args)
 int	Listen::setPort(const std::string& arg)
 {
 	unsigned short	portValue;
-	bool			isValid = strToVal<unsigned short>(arg, portValue);
+	bool			isValid = strToVal<u_int16_t>(arg, portValue);
 	
 	if (!isValid || portValue == 0)
-	return (error("Invalid port, port must be a value between 1 and 65535"));
-	_port = portValue;
+		return (error("Invalid port, port must be a value between 1 and 65535"));
+	_portHostByteOrder = portValue;
 	return (0);
 }
 
 int	Listen::setIp(const std::string& ip)
 {
-	if (ip == "localhost")
-	{
-		_host = "127.0.0.1";
-		return (0);
-	}
+	// if (ip == "localhost")
+	// {
+	// 	_IP = "127.0.0.1";
+	// 	_IPHostByteOrder = (127 << 24) | (0 << 16) | (0 << 8) | 1;
+	// 	return (0);
+	// }
 	
-	TStrVect	fields = split(ip, ".");
-	if (fields.size() != 4)
-	return (error("Invalid IP address"));
-	for (size_t	i = 0; i < 4; i++)
-	{
-		unsigned char	val;
-		if (strToVal<u_char>(fields[i], val) == false)
+	// TStrVect	fields = split(ip, ".");
+	// if (fields.size() != 4)
+	// 	return (error("Invalid IP address"));
+	
+	// _IPHostByteOrder = 0;
+	// for (size_t	i = 0; i < 4; i++)
+	// {
+	// 	unsigned char	val;
+	// 	if (strToVal<u_char>(fields[i], val) == false)
+	// 		return (error("Invalid IP address"));
+	// 	_IPHostByteOrder = (_IPHostByteOrder << 8 ) | val;
+	// }
+	// 
+	// _IP = ip;
+	// return (0);
+	
+	if (ip == "localhost")
+		_IP = "127.0.0.1";
+	else
+		_IP = ip;
+
+	struct in_addr addr;
+	if (inet_pton(AF_INET, _IP.c_str(), &addr) != 1)
 		return (error("Invalid IP address"));
-	}
-	_host = ip;
+	_IPHostByteOrder = ntohl(addr.s_addr);
 	return (0);
 }
 
-Listen::Listen(void) :  ElementConfig(), _host(""), _port(0), _set(false) {}
+Listen::Listen(void) :  ElementConfig(), _IP(""), _IPHostByteOrder(0), _portHostByteOrder(0), _set(false) {}
 
-Listen::Listen(const Listen& c) : ElementConfig(c), _host(c._host), _port(c._port), _set(c._set) {}
+Listen::Listen(const Listen& c) : ElementConfig(c), _IP(c._IP), _IPHostByteOrder(c._IPHostByteOrder), _portHostByteOrder(c._portHostByteOrder), _set(c._set) {}
 
 Listen& Listen::operator=(const Listen& c)
 {
 	if (this != &c)
 	{
 		ElementConfig::operator=(c);
-		_host = c._host;
-		_port = c._port;
+		_IP = c._IP;
+		_IPHostByteOrder = c._IPHostByteOrder;
+		_portHostByteOrder = c._portHostByteOrder;
 		_set = c._set;
 	}
 	return (*this);
@@ -144,9 +170,15 @@ Listen& Listen::operator=(const Listen& c)
 
 Listen::~Listen(void) {}
 
-const TStr&	Listen::getHost(void) const { return _host; }
-ushort	Listen::getPort(void) const { return _port; }
+const TStr&	Listen::getIP(void) const { return _IP; }
+u_int32_t	Listen::getIPHostByteOrder(void) const { return _IPHostByteOrder; }
+u_int16_t	Listen::getPortHostByteOrder(void) const { return _portHostByteOrder; }
 bool	Listen::isSet(void) const { return _set; }
+
+TIPPort	Listen::toRuntimeConfig(void) const
+{
+	return (std::make_pair(_IPHostByteOrder, _portHostByteOrder));
+}
 
 int	Listen::set(Statement* statement)
 {
@@ -154,14 +186,14 @@ int	Listen::set(Statement* statement)
 	if (_set == true)
 		return (error("Duplicate listen statement"));
 	_set = true;
-	return (setHostAndPort(statement->getArgs()));
+	return (setIPAndPort(statement->getArgs()));
 }
-
-
 
 std::ostream&	Listen::print(std::ostream& o, size_t indent) const
 {
-	o << TStr(indent, '-') << "Host : " << _host << " Port : " << _port << std::endl;
+	o << TStr(indent, '-') << "IP : " << _IP 
+	<< " (0x" << std::setw(8) << std::setfill('0') << std::hex << _IPHostByteOrder << std::dec << ")" 
+	<< " Port : " << _portHostByteOrder << std::endl;
 	return (o);
 }
 
@@ -173,12 +205,15 @@ int	ServerName::addServerNames(const TStrVect& args)
 		return (error("Missing arguments in server_name directive"));
 	for (size_t i = 0; i < args.size(); i++)
 	{
-		const TStr& arg = args[i];
+		TStr arg = args[i];
 		if (!arg.empty())
 		{
+			toLowerStr(arg);
 			if (_serverNames.insert(arg).second == false)
 				error("Duplicate server_name argument '" + arg + "' found in same block");
 		}
+		else
+			error("Empty argument inside the server_names directive");
 	}
 	return (0);
 }
@@ -230,7 +265,12 @@ int	LocationPath::setPath(const TStrVect& args)
 	if (args.size() != 1 || args[0].empty())
 		return (error("Missing or invalid path argument in location statement"));
 		
-	_path = args[0];
+	return (setPath(args[0]));
+}
+
+int	LocationPath::setPath(const TStr& arg)
+{
+	_path = arg;
 	int	errorFound = 0;
 	
 	if (_path[0] != '/')
@@ -270,6 +310,13 @@ int	LocationPath::set(Statement* statement)
 	updateElementConfig(statement);
 	_set = true;
 	return (setPath(statement->getArgs()));
+}
+
+int	LocationPath::set(const TStr& path)
+{
+	updateElementConfig(0, 0, path, TStrVect());
+	_set = true;
+	return (setPath(path));
 }
 
 std::ostream&	LocationPath::print(std::ostream& o, size_t indent) const
@@ -503,6 +550,9 @@ int	CgiPass::set(Statement* statement)
 
 int CgiPass::setFullPath(const TStr& configFullPath)
 {
+	if (_filePath.empty())
+		return (0);
+
 	_fullFilePath = joinPaths(configFullPath, _filePath);
 
 	int	errorFound = checkCgiBin(_fullFilePath);
@@ -598,9 +648,9 @@ int		Index::setFileNames(const TStrVect& args)
 	return (0);
 }
 
-Index::Index(void) : ElementConfig(), _fileNames(), _set(false) {}
+Index::Index(void) : ElementConfig(), _fileNames(), _fullFileNames(), _set(false) {}
 
-Index::Index(const Index& c) : ElementConfig(c), _fileNames(c._fileNames), _set(c._set) {}
+Index::Index(const Index& c) : ElementConfig(c), _fileNames(c._fileNames), _fullFileNames(c._fullFileNames), _set(c._set) {}
 
 Index& Index::operator=(const Index& c)
 {
@@ -616,6 +666,7 @@ Index& Index::operator=(const Index& c)
 Index::~Index(void) {}
 
 const	TStrVect& Index::getFileNames(void) const { return _fileNames; }
+const	TStrVect& Index::getFullFileNames(void) const { return _fullFileNames; }
 bool	Index::isSet(void) const { return _set; }
 
 int		Index::set(Statement* statement)
@@ -627,11 +678,34 @@ int		Index::set(Statement* statement)
 	return (setFileNames(statement->getArgs()));
 }
 
+int		Index::setFullFileNames(const TStr& configFullPath)
+{
+	if (_fileNames.empty())
+		return (0);
+
+	_fullFileNames.reserve(_fileNames.size());
+
+	int	errorFound = 0;
+	for (size_t i = 0; i < _fileNames.size(); i++)
+	{
+		const TStr&	fileName = _fileNames[i];
+		TStr	fullPath = joinPaths(configFullPath, fileName);
+		
+		if (!isExistingAndAccessibleFile(fullPath, R_OK))
+			errorFound = error("Index file '" + fullPath + "' does not exist or cannot be read");
+		_fullFileNames.push_back(fullPath);
+	}
+	return (errorFound);
+}
+
 std::ostream&	Index::print(std::ostream& o, size_t indent) const
 {
 	o << TStr(indent, '-') << "Index :";
 	for (size_t i = 0; i < _fileNames.size(); i++)
 		o << " " << _fileNames[i];
+	o << "\t-> Full paths:";
+	for (size_t i = 0; i < _fullFileNames.size(); i++)
+		o << " " << _fullFileNames[i];
 	o << std::endl;
 	return (o);
 }
@@ -736,9 +810,9 @@ int	ErrorPage::addErrorPages(const TStrVect& args)
 	return (errorFound);
 }
 
-ErrorPage::ErrorPage(void) : ElementConfig(), _errorPages() {}
+ErrorPage::ErrorPage(void) : ElementConfig(), _errorPages(), _errorPagesFullPath() {}
 
-ErrorPage::ErrorPage(const ErrorPage& c) : ElementConfig(c), _errorPages(c._errorPages) {}
+ErrorPage::ErrorPage(const ErrorPage& c) : ElementConfig(c), _errorPages(c._errorPages), _errorPagesFullPath(c._errorPagesFullPath) {}
 
 ErrorPage& ErrorPage::operator=(const ErrorPage& c)
 {
@@ -754,9 +828,16 @@ ErrorPage::~ErrorPage(void) {}
 
 const std::map<ushort, TStr>& ErrorPage::getErrorPages(void) const { return _errorPages; }
 
-const TStr& ErrorPage::getErrorPage(ushort errnum) const
+const TStr* ErrorPage::getErrorPage(ushort errnum) const
 { 
-	return (_errorPages.find(errnum)->second);
+	std::map<ushort, TStr>::const_iterator it = _errorPages.find(errnum);
+	return (it != _errorPages.end() ? &it->second : NULL);
+}
+
+const TStr* ErrorPage::getErrorPageFullPath(ushort errnum) const
+{
+	std::map<ushort, TStr>::const_iterator it = _errorPagesFullPath.find(errnum);
+	return (it != _errorPagesFullPath.end() ? &it->second : NULL);
 }
 
 bool	ErrorPage::isSet(void) const { return !_errorPages.empty(); }
@@ -783,6 +864,22 @@ int		ErrorPage::set(Statement* statement)
 	return (addErrorPages(statement->getArgs()));
 }
 
+int		ErrorPage::setFullPath(const TStr& configFullPath)
+{
+	if (_errorPages.empty())
+		return (0);
+
+	int	errorFound = 0;
+	for (std::map<ushort, TStr>::const_iterator	it = _errorPages.begin(); it != _errorPages.end(); it++)
+	{
+		TStr	fullPath = joinPaths(configFullPath, it->second);
+		if (!isExistingAndAccessibleFile(fullPath, R_OK))
+			errorFound = error("Error page file '" + fullPath + "' does not exist");
+		_errorPagesFullPath[it->first] = fullPath;
+	}
+	return (errorFound);
+}
+
 std::ostream&	ErrorPage::print(std::ostream& o, size_t indent) const
 {
 	std::map<ushort, TStr>::const_iterator it = _errorPages.begin();
@@ -790,7 +887,15 @@ std::ostream&	ErrorPage::print(std::ostream& o, size_t indent) const
 
 	o << TStr(indent, '-') << "Error pages:\n";
 	for (; it != ite; it++)
-		o << TStr(indent + 2, '-') << it->first << ": " << it->second << std::endl;
+	{
+		o << TStr(indent + 2, '-') << it->first << ": " << it->second;
+		o << "\t-> Full path : ";
+		std::map<ushort, TStr>::const_iterator itFullPath = _errorPagesFullPath.find(it->first);
+		if (itFullPath != _errorPagesFullPath.end())
+			o << itFullPath->second;
+		o << std::endl;
+	}
+		
 	
 	return (o);
 }
@@ -847,6 +952,20 @@ std::ostream&	ClientMaxBodySize::print(std::ostream& o, size_t indent) const
 
 // ======================== LOCATION CONFIG
 
+LocationConfig::LocationConfig(const ServerConfig& serverConfig)
+		: 	ElementConfig(serverConfig), 
+			_locationPath(), 
+			_alias(), 
+			_allowedMethods(), 
+			_cgiPass(), 
+			_root(serverConfig.getRoot()), 
+			_index(serverConfig.getIndex()), 
+			_autoindex(serverConfig.getAutoindex()), 
+			_errorPage(serverConfig.getErrorPage()), 
+			_clientMaxBodySize(serverConfig.getClientMaxBodySize()),
+			_fullPath()
+{}
+
 LocationConfig::LocationConfig(Statement* statement)
 		: 	ElementConfig(statement), 
 			_locationPath(), 
@@ -857,15 +976,16 @@ LocationConfig::LocationConfig(Statement* statement)
 			_index(), 
 			_autoindex(), 
 			_errorPage(), 
-			_clientMaxBodySize()
+			_clientMaxBodySize(),
+			_fullPath()
 {
 	setError(setLocationPath(statement));
 }
 
+
 LocationConfig::~LocationConfig(void) {}
 
 const LocationPath&			LocationConfig::getLocationPath(void) const { return _locationPath; }
-const TStr&					LocationConfig::getFullPath(void) const { return _fullPath; }
 const Alias&				LocationConfig::getAlias(void) const { return _alias; }
 const AllowedMethods&		LocationConfig::getAllowedMethods(void) const { return _allowedMethods; }
 const CgiPass&				LocationConfig::getCgiPass(void) const { return _cgiPass; }
@@ -874,9 +994,10 @@ const Index&				LocationConfig::getIndex(void) const { return _index; }
 const Autoindex&			LocationConfig::getAutoindex(void) const { return _autoindex; }
 const ErrorPage&			LocationConfig::getErrorPage(void) const { return _errorPage; }
 const ClientMaxBodySize&	LocationConfig::getClientMaxBodySize(void) const { return _clientMaxBodySize; }
+const TStr&					LocationConfig::getFullPath(void) const { return _fullPath; }
 
 int	LocationConfig::setLocationPath(Statement* statement) { return(_locationPath.set(statement)); }
-void LocationConfig::setFullPath(void) { _fullPath = (_alias.isSet() ? _alias.getFolderPath() : joinPaths(_root.getFolderPath(), _locationPath.getPath())); }
+int	LocationConfig::setLocationPath(const TStr& path) { return(_locationPath.set(path)); }
 int	LocationConfig::setAlias(Statement* statement) { return (_alias.set(statement)); }
 int	LocationConfig::setAllowedMethods(Statement* statement) { return (_allowedMethods.set(statement)); }
 int	LocationConfig::setCgiPass(Statement* statement) { return (_cgiPass.set(statement)); }
@@ -910,7 +1031,7 @@ int	LocationConfig::setDirective(Statement* statement)
 	return ( (this->*(it->second))(statement) );
 }
 
-int	LocationConfig::inheritFromServerConfig(ServerConfig* serverConfig)
+int	LocationConfig::inheritFromServerConfig(const ServerConfig* serverConfig)
 {
 	if (!_alias.isSet() && !_root.isSet())
 		_root = serverConfig->getRoot();
@@ -924,19 +1045,37 @@ int	LocationConfig::inheritFromServerConfig(ServerConfig* serverConfig)
 	return (0);
 }
 
+int LocationConfig::setFullPath(void)
+{
+	if (_locationPath.getPath().empty())
+		return (error("Location full path cannot be set if location path argument is missing"));
+	
+	_fullPath = (_alias.isSet() ? _alias.getFolderPath() : joinPaths(_root.getFolderPath(), _locationPath.getPath())); 
+	
+	if (_fullPath.empty() || !isExecutableDirectory(_fullPath))
+		return(error("Location full path '" + _fullPath + "' is not an executable directory"));
+	return (0);
+}
+
 int	LocationConfig::validLocationConfig(void)
 {
+	int	errorFound = 0;
 	if (!_alias.isSet() && !_root.isSet())
-		return (error("Empty root at server level is not covered by root or alias at location level"));
+		errorFound = error("Empty root at server level is not covered by root or alias at location level");
 	
-	setFullPath();
-	
-	if (!isExecutableDirectory(_fullPath))
-		return (error("Location full path '" + _fullPath + "' is not an executable directory"));
-	
+	if (setFullPath())
+		errorFound = 1;
+
 	if (!_allowedMethods.isSet())
 		_allowedMethods.setDefaultMethods();
-	return (0);
+
+	if (_cgiPass.isSet() && _cgiPass.setFullPath(_fullPath))
+		errorFound = 1;
+	if (_index.isSet() && _index.setFullFileNames(_fullPath))
+		errorFound = 1;
+	if (_errorPage.isSet() && _errorPage.setFullPath(_fullPath))
+		errorFound = 1;
+	return (errorFound);
 }
 
 std::ostream&	LocationConfig::print(std::ostream& o, size_t indent) const
@@ -965,7 +1104,9 @@ ServerConfig::ServerConfig(Statement* statement)
 		_index(),
 		_autoindex(),
 		_errorPage(),
-		_locations()
+		_locations(),
+		_defaultLocationConfig(NULL),
+		_runtimeLocations()
 {
 	if (!_args.empty())
 		error("Server block cannot have arguments");
@@ -1023,13 +1164,105 @@ void	ServerConfig::addLocation(LocationConfig* locationConfig)
 	_locations.push_back(locationConfig);
 }
 
-void	ServerConfig::makeLocationsInhertiance(void)
+void	ServerConfig::validateLocations(void)
 {
 	for (size_t i = 0; i < _locations.size(); i++)
 	{
 		_locations[i]->inheritFromServerConfig(this);
 		_locations[i]->validLocationConfig();
 	}
+}
+
+int	ServerConfig::addDefaultLocationConfig(void)
+{
+	LocationConfig*	locationConfig = new LocationConfig(*this);
+
+	int errorFound = locationConfig->setLocationPath(TStr("/"));
+	errorFound = locationConfig->validLocationConfig();
+	_locations.push_back(locationConfig);
+	_defaultLocationConfig = locationConfig;
+	return (errorFound);
+}
+
+int	ServerConfig::setDefaultLocationConfig(void)
+{
+	for (size_t i = 0; i < _locations.size(); i++)
+	{
+		if (_locations[i]->getLocationPath().getPath() == "/")
+		{
+			_defaultLocationConfig = _locations[i];
+			return (0);
+		}	
+	}
+	return (addDefaultLocationConfig());
+}
+
+const LocationConfig*	ServerConfig::getDefaultLocationConfig(void) const { return (_defaultLocationConfig); }
+
+int	ServerConfig::checkPort(void)
+{
+	if (!_listen.isSet() || _listen.getError() != 0)
+		return (error("Invalid listen directive in server"));
+	return (0);
+}
+
+int	ServerConfig::checkDuplicatePaths(void)
+{
+	std::set<TStr>	paths;
+	int	errorFound = 0;
+	
+	for (size_t i = 0; i < _locations.size(); i++)
+	{
+		const TStr& path = _locations[i]->getLocationPath().getPath();
+		if (paths.insert(path).second == false)
+			errorFound = error("Duplicate location path '" + path + "' found in the same server block");
+	}
+	return (errorFound);
+}
+
+int	ServerConfig::validServerConfig(void)
+{
+	int	errorFound = 0;
+
+	if (setDefaultLocationConfig())
+		errorFound = 1;
+	
+	if (checkPort())
+		errorFound = 1;
+
+	if (checkDuplicatePaths())
+		errorFound = 1;
+	
+	return (errorFound);
+}
+
+bool	ServerConfig::compareLocationPairsByPathDescendingLen(const std::pair<TStr, const LocationConfig*>& a, const std::pair<TStr, const LocationConfig*>& b)
+{
+	return (a.first.size() > b.first.size());
+}
+
+void	ServerConfig::makeRuntimeLocations(void)
+{
+	_runtimeLocations.reserve(_locations.size());
+
+	for (size_t i = 0; i < _locations.size(); i++)
+	{
+		const LocationConfig*	locationConfig = _locations[i];
+		_runtimeLocations.push_back(std::make_pair(locationConfig->getLocationPath().getPath(), locationConfig));
+	}
+
+	std::sort(_runtimeLocations.begin(), _runtimeLocations.end(), ServerConfig::compareLocationPairsByPathDescendingLen);
+}
+
+const LocationConfig*	ServerConfig::findLocation(const TStr& requestUri) const
+{
+	for (size_t i = 0; i < _runtimeLocations.size(); i++)
+	{
+		const TStr& locationPath = _runtimeLocations[i].first;
+		if (requestUri.compare(0, locationPath.size(), locationPath) == 0)
+			return (_runtimeLocations[i].second);
+	}
+	return (_defaultLocationConfig);
 }
 
 std::ostream&		ServerConfig::print(std::ostream& o, size_t indent = 0) const
@@ -1042,8 +1275,10 @@ std::ostream&		ServerConfig::print(std::ostream& o, size_t indent = 0) const
 	_autoindex.print(o, indent + 3);
 	_errorPage.print(o, indent + 3);
 	_clientMaxBodySize.print(o, indent + 3);
-	for (size_t i = 0; i < _locations.size(); i++)
-		_locations[i]->print(o, indent + 3);
+	// for (size_t i = 0; i < _locations.size(); i++)
+	// 	_locations[i]->print(o, indent + 3);
+		for (size_t i = 0; i < _runtimeLocations.size(); i++)
+		_runtimeLocations[i].second->print(o, indent + 3);
 	return (o);
 }
 
@@ -1071,6 +1306,7 @@ void	Builder::parsingToBuild(void)
 	}
 }
 
+
 ServerConfig* 	Builder::buildServerConfig(Statement* statement)
 {
 	ServerConfig* serverConfig = new ServerConfig(statement);
@@ -1092,7 +1328,9 @@ ServerConfig* 	Builder::buildServerConfig(Statement* statement)
 		else if (child->getStatementType() == Statement::DIRECTIVE)
 			serverConfig->setDirective(child);
 	}
-	serverConfig->makeLocationsInhertiance();
+	serverConfig->validateLocations();
+	serverConfig->validServerConfig();
+	serverConfig->makeRuntimeLocations();
 	return (serverConfig);
 }
 
@@ -1114,6 +1352,7 @@ LocationConfig*	Builder::buildLocationConfig(Statement *statement)
 	return (locationConfig);
 }
 
+
 int		Builder::getError(void) const { return _error; }
 void	Builder::setError(int error) { _error = error; }
 
@@ -1124,8 +1363,15 @@ int		Builder::error(Statement* statement, const TStr& msg)
 	return (_error);
 }
 
+int		Builder::error(const ElementConfig* elementConfig, const TStr& msg)
+{
+	Console::configLog(Console::ERROR, elementConfig->getLine(), elementConfig->getColumn(), elementConfig->getName(), elementConfig->getArgs(), "BUILDING", msg);
+	setError(1);
+	return (_error);
+}
 
-Builder::Builder(const std::vector<Statement*>& statements) : _statements(statements) { parsingToBuild(); }
+
+Builder::Builder(const std::vector<Statement*>& statements) : _statements(statements), _build(), _runtimeBuild() { parsingToBuild(); }
 
 Builder::~Builder(void)
 {
@@ -1134,10 +1380,64 @@ Builder::~Builder(void)
 	_build.clear();
 }
 
+const std::map<TIPPort, HostToServerMap>& Builder::getRuntimeBuild(void) const { return _runtimeBuild; }
+
+void	Builder::makeRuntimeBuild(void)
+{
+	for (size_t i = 0; i < _build.size(); i++)
+	{
+		const ServerConfig*	serverConfig = _build[i];							// 1. Store current serverConfig
+		TIPPort	serverIPPort = serverConfig->getListen().toRuntimeConfig();  	// 2. Compute the ip/port pair of the serverConfig
+		HostToServerMap& hostToServerMap = _runtimeBuild[serverIPPort];			// 3. For the given ip/port pair, finds the server_name-config map. If not found, creates an entry for ip/port and returns a reference to the server_name-config map which is empty
+		
+		if (hostToServerMap.empty())
+			hostToServerMap[""] = serverConfig;
+
+		const std::set<TStr>&	serverNames = serverConfig->getServerName().getServerNames();   		// 4. Retrieve the server_names of the serverConfig
+		for (std::set<TStr>::const_iterator it = serverNames.begin(); it != serverNames.end(); it++)	// 5. Loop over the server_names
+		{
+			HostToServerMap::const_iterator foundServerName = hostToServerMap.find(*it);				// 6. Look for the current server_name inside the server_name-config map
+			if (foundServerName == hostToServerMap.end())												// 7. Current server_name not found inside the server_name-config map
+				hostToServerMap[*it] = serverConfig;
+			else
+			{
+				std::ostringstream	oss;
+				oss << "Duplicate server name '" << *it << "' for ip port '" << serverConfig->getListen().getIP() << ":" << serverIPPort.second << "'";
+				error(&serverConfig->getServerName(), oss.str());
+			}
+		}
+	}
+}
+
+
+
+const ServerConfig*	Builder::findServerConfig(const TIPPort& ipPort, const TStr& host)
+{
+	std::map<TIPPort, HostToServerMap>::const_iterator ipPortFound = _runtimeBuild.find(ipPort);
+	if (ipPortFound == _runtimeBuild.end())
+		return (NULL);
+
+	const HostToServerMap& hostToServerMap = ipPortFound->second;
+	HostToServerMap::const_iterator	hostFound = hostToServerMap.find(host);
+	if (hostFound != hostToServerMap.end())
+		return (hostFound->second);
+
+	HostToServerMap::const_iterator	fallback = hostToServerMap.find("");
+	if (fallback != hostToServerMap.end())
+		return (fallback->second);
+	return (NULL);
+}
+
+
 void	Builder::printBuild(void) const
 {
 	for (size_t i = 0; i < _build.size(); i++)
 		_build[i]->print(std::cout, 0);
+}
+
+void	Builder::printRuntimeBuild(void) const
+{
+	std::map<TIPPort, std::map<TStr, const ServerConfig*> >::const_iterator	it = _runtimeBuild.begin();
 }
 
 void	Builder::throwInvalid(void) const

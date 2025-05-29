@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:21:21 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/27 18:26:35 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/29 23:51:11 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,6 +23,7 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <iomanip>
 #include <limits>
 
 #include <cstdarg>
@@ -30,12 +31,22 @@
 #include <climits>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <arpa/inet.h>
+
+class Token;
+class Lexer;
+
+class Statement;
+class Parser;
+class ServerConfig;
 
 typedef std::vector<std::string>	TStrVect;
 typedef std::vector<int>			TIntVect;
 typedef std::vector<ushort>			TUShortVect;
 typedef std::string					TStr;
-
+typedef std::pair<u_int32_t, u_int16_t>	TIPPort;
+typedef	std::map<TStr, const ServerConfig*>	HostToServerMap;
+typedef std::map<TIPPort, HostToServerMap>	RuntimeBuildMap;
 
 namespace HttpMethods
 {
@@ -49,11 +60,7 @@ namespace HttpMethods
 	};
 };
 
-class Token;
-class Lexer;
 
-class Statement;
-class Parser;
 
 
 

@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:29:17 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/27 19:49:57 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/30 00:42:57 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -73,6 +73,12 @@ char	safeStrIndex(const TStr& str, size_t i)
 	if (i >= str.size())
 		return ('\0');
 	return (str[i]);
+}
+
+void	toLowerStr(TStr& str)
+{
+	for (TStr::iterator it = str.begin(); it != str.end(); it++)
+		*it = std::tolower(static_cast<unsigned char>(*it));
 }
 
 std::ostream&	operator<<(std::ostream& o, const TStrVect& vect)
