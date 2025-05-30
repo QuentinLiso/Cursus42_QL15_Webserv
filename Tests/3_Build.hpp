@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/22 08:45:05 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/30 01:02:05 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/31 00:42:53 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -176,11 +176,10 @@ class	AllowedMethods : public ElementConfig
 class	CgiPass : public ElementConfig
 {
 	private:
-		TStr	_filePath;
-		TStr	_fullFilePath;
+		TStr	_execPath;
 		bool	_set;
 		
-		int	setFolderPath(const TStrVect& args);
+		int	setExecPath(const TStrVect& args);
 		int	checkCgiBin(const TStr& filePath);
 		int	checkCgiDirectory(const TStr& filePath);
 
@@ -190,12 +189,10 @@ class	CgiPass : public ElementConfig
 		CgiPass& operator=(const CgiPass& c);
 		~CgiPass(void);
 
-		const TStr& getFilePath(void) const;
-		const TStr& getFullFilePath(void) const;
+		const TStr& getExecPath(void) const;
 		bool		isSet(void) const;
 
 		int		set(Statement* statement);
-		int		setFullPath(const TStr& configFullPath);
 		virtual std::ostream&	print(std::ostream& o, size_t indent) const;
 };
 
@@ -431,158 +428,40 @@ class	ServerConfig : public ElementConfig
 class	Builder
 {
 	private:
-		const std::vector<Statement*>& 	_statements;
-		std::vector<ServerConfig*>		_build;
+		std::vector<ServerConfig*>			_build;
 		std::map<TIPPort, HostToServerMap>	_runtimeBuild;
-
 		int		_error;
 
-		void			parsingToBuild(void);
 		ServerConfig*	buildServerConfig(Statement* statement);
 		LocationConfig*	buildLocationConfig(Statement* child);
-		
 
-
-		
-		
-		// const std::map<TStr, const ServerConfig*>&	findServerConfigs(TIPPort ipPort);
-		// std::map<TStr, const ServerConfig*> createMapServerNamesToServecConfig(u_int32_t ip, u_int16_t port);
-	
-		int					getError(void) const;
-		void				setError(int error);
-		int					error(Statement* statement, const TStr& msg);
-		int					error(const ElementConfig* elementConfig, const TStr& msg);
+		void	setError(int error);
+		int		error(Statement* statement, const TStr& msg);
+		int		error(const ElementConfig* elementConfig, const TStr& msg);
+		int		error(const TStr& msg);
 	
 	public:
-		Builder(const std::vector<Statement*>& statements);
+		Builder(void);
 		~Builder(void);
 
+		int		getError(void) const;
+		const std::vector<ServerConfig*>&		  getRawBuild(void) const;
 		const std::map<TIPPort, HostToServerMap>& getRuntimeBuild(void) const;
+
+		void				parsingToBuild(const std::vector<Statement*>& statements);
+		int					validParsingToBuild(void);
 		void				makeRuntimeBuild(void);
-		int					validRuntimeBuild(void);			//TO IMPLEMENT
-		int					checkWildcardIpDuplicatePorts(void); // TO IMPLEMENT
-		int				checkFallbacksServers(void);   		// TO IMPLEMENT
-				
-		const ServerConfig*	findServerConfig(const TIPPort& ipPort, const TStr& host);
-		const LocationConfig*	findLocationConfig(const TIPPort& ipPort, const TStr& host, const TStr& requestedUri); // TO IMPLEMENT
+		int					validRuntimeBuild(void);
+		
+		std::set<TIPPort>		getBoundSockets(void) const;
+		const HostToServerMap&	getServerConfigsForSocket(const TIPPort &ipPort);
+		const ServerConfig*		findServerConfig(const TIPPort& ipPort, const TStr& host) const;
+		const LocationConfig*	findLocationConfig(const TIPPort& ipPort, const TStr& host, const TStr& requestedUri) const;
 
 		void	printBuild(void) const;
 		void	printRuntimeBuild(void) const;	// TO IMPLEMENT
-		void	throwInvalid(void) const;
+		void	throwInvalid(const TStr& msg) const;
 };
-
-// TO IMPLEMENT :::::
-
-// int validRuntimeBuild(void);
-// Purpose: Global consistency/structure check of the entire runtime build.
-
-// What to validate:
-
-// No empty _runtimeBuild or empty maps per IP:Port.
-
-// Each (IP, Port) has at least one valid ServerConfig*.
-
-// Each HostToServerMap has a "" (fallback/default).
-
-// No NULL pointers.
-
-// ✅ Good idea. This ensures the runtime map is fully built and sound.
-
-// int checkWildcardIpDuplicatePorts(void);
-// Purpose: Avoid conflicts between 0.0.0.0:port and other specific IPs using the same port.
-
-// Why it's important:
-// Binding to 0.0.0.0:80 reserves port 80 on all interfaces, so trying to bind 192.168.1.10:80 will fail.
-
-// What to check:
-
-// If 0.0.0.0:PORT exists, no other (IP, PORT) pairs should exist for that PORT.
-
-// This check must cover all combinations of TIPPort.
-
-// ✅ Very good, and often overlooked.
-
-// int checkFallbacksServers(void);
-// Purpose: Ensure every (IP, Port) has a default fallback ("") server_name.
-
-// Why it matters:
-
-// The Host: header can be missing, malformed, or unmatched.
-
-// Nginx-like behavior: fallback to the default server {} block for that IP/Port.
-
-// What to check:
-
-// Every HostToServerMap in _runtimeBuild[ipPort] contains a "" entry.
-
-// Maybe warn if the fallback server has server_name entries — it may not match any.
-
-// ✅ Must-have. Avoids crashes or undefined behavior when Host: doesn’t match.
-
-// 🧨 Extra-Picky Suggested Checks
-// Now let’s push it further:
-
-// 🔍 1. Detect Same server_name on Conflicting IP:Port
-// Why? While server_name can repeat across IP:Port scopes, it could lead to misinterpretation if the configs are incorrect or overlapping.
-
-// What to do:
-
-// Build a reverse index: std::map<TStr, std::set<TIPPort>> serverNameToBindings
-
-// Detect weird overlaps — same server_name defined for wildly different bindings (e.g., localhost on 10.0.0.1:8080 and 192.168.1.1:443)
-
-// 🔸 Optional, but great for user clarity/debugging.
-
-// 🔍 2. Validate Unique listen IP:Port Across ServerConfig Blocks
-// Nginx allows you to reuse ports with different server_names — but you can’t have exact same listen IP+port+server_name.
-
-// You already handle duplicates per IP:port, but check if two configs define exactly the same (IP, port, and server_name).
-
-// cpp
-// Copy
-// Edit
-// std::set<std::tuple<TIPPort, TStr>> seenBindings;
-// 🔍 3. Check That All ServerConfigs Are Used in _runtimeBuild
-// Unused server blocks should be flagged.
-
-// Example:
-
-// A config block with a listen to a wrong IP (typo) that’s never resolved.
-
-// How:
-
-// Track all ServerConfig* in _build
-
-// After makeRuntimeBuild(), check that each one appears at least once in a map.
-
-// 🔍 4. Detect Overlapping Wildcard Port Bindings (across different ports)
-// If you're being truly paranoid:
-
-// Two wildcard entries 0.0.0.0:80 and 0.0.0.0:443 are fine
-
-// But make sure wildcard + overlap with specific IP doesn’t cover same logical interface.
-
-// May be out-of-scope for your setup — depends on runtime binding semantics.
-
-// 🔍 5. Warn If Multiple IPPorts Share Same ServerConfig Pointer
-// This might be fine (same config reused) — but it’s good to log it explicitly.
-
-// cpp
-// Copy
-// Edit
-// std::map<const ServerConfig*, std::vector<TIPPort>> reverseMap;
-// It helps for debug or misconfig detection.
-
-// 🧠 Summary: Final List of Validation Checks
-// Check #	Description
-// ✅ 1	Ensure each IP:Port has at least one ServerConfig
-// ✅ 2	Ensure fallback server ("") exists per HostToServerMap
-// ✅ 3	Prevent 0.0.0.0:PORT conflicting with IP:PORT
-// 🔍 4	Warn on duplicated (IP, PORT, server_name) triple
-// 🔍 5	Detect server_name mapped to multiple IP:PORT (maybe warn)
-// 🔍 6	Validate all ServerConfig* are used in _runtimeBuild
-// 🔍 7	Optionally warn on reused ServerConfig* across bindings
-// 🔍 8	Normalize and compare server_names case-insensitively
 
 
 #endif

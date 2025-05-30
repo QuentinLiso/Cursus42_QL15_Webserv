@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/22 08:56:11 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/30 00:52:26 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/31 00:42:46 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -122,11 +122,9 @@ int	Listen::setIp(const std::string& ip)
 	// 	_IPHostByteOrder = (127 << 24) | (0 << 16) | (0 << 8) | 1;
 	// 	return (0);
 	// }
-	
 	// TStrVect	fields = split(ip, ".");
 	// if (fields.size() != 4)
 	// 	return (error("Invalid IP address"));
-	
 	// _IPHostByteOrder = 0;
 	// for (size_t	i = 0; i < 4; i++)
 	// {
@@ -471,25 +469,25 @@ std::ostream&	AllowedMethods::print(std::ostream& o, size_t indent) const
 
 // === CGI PASS
 
-int		CgiPass::setFolderPath(const TStrVect& args)
+int		CgiPass::setExecPath(const TStrVect& args)
 {
 	if (args.size() != 1 || args[0].empty())
 		return (error("cgi_pass directive should have exactly 1 non-empty argument"));
 	
 	int	errorFound = 0;
-	_filePath = args[0];
-	if (_filePath[0] != '/')
+	_execPath = args[0];
+	if (_execPath[0] != '/')
 		errorFound = error("cgi_pass directive argument must be an absolute path and must start with '/'");
-	if (!isValidFilepath(_filePath))
+	if (!isValidFilepath(_execPath))
 		errorFound = error("Invalid folder path character found in cgi_pass directive");
-	if (containsDoubleDotsAccess(_filePath))
+	if (containsDoubleDotsAccess(_execPath))
 		errorFound = error("cgi_pass directive cannot have '..' as path access inside the provided argument");
 	// if (checkCgiBin(filePath))
 	// 	errorFound = 1;
 	// if (checkCgiDirectory(filePath))
 	// 	errorFound = 1;
-	removeStrDuplicateChar(_filePath, '/');
-	removeDotPaths(_filePath);
+	removeStrDuplicateChar(_execPath, '/');
+	removeDotPaths(_execPath);
 	return (errorFound);
 }
 
@@ -518,16 +516,16 @@ int	CgiPass::checkCgiDirectory(const TStr& filePath)
 	return (0);
 }
 
-CgiPass::CgiPass(void) : ElementConfig(), _filePath(""), _fullFilePath(""), _set(false) {}
+CgiPass::CgiPass(void) : ElementConfig(), _execPath(""), _set(false) {}
 
-CgiPass::CgiPass(const CgiPass& c) : ElementConfig(c), _filePath(c._filePath), _fullFilePath(c._fullFilePath), _set(c._set) {}
+CgiPass::CgiPass(const CgiPass& c) : ElementConfig(c), _execPath(c._execPath), _set(c._set) {}
 
 CgiPass& CgiPass::operator=(const CgiPass& c)
 {
 	if (this != &c)
 	{
 		ElementConfig::operator=(c);
-		_filePath = c._filePath;
+		_execPath = c._execPath;
 		_set = c._set;
 	}
 	return (*this);
@@ -535,8 +533,7 @@ CgiPass& CgiPass::operator=(const CgiPass& c)
 
 CgiPass::~CgiPass(void) {}
 
-const TStr& CgiPass::getFilePath(void) const { return _filePath; }
-const TStr& CgiPass::getFullFilePath(void) const { return _fullFilePath; }
+const TStr& CgiPass::getExecPath(void) const { return _execPath; }
 bool		CgiPass::isSet(void) const { return _set; }
 
 int	CgiPass::set(Statement* statement)
@@ -545,24 +542,12 @@ int	CgiPass::set(Statement* statement)
 	if (_set)
 		return (error("Duplicate cgi_pass directive found in same block"));
 	_set = true;
-	return (setFolderPath(statement->getArgs()));
-}
-
-int CgiPass::setFullPath(const TStr& configFullPath)
-{
-	if (_filePath.empty())
-		return (0);
-
-	_fullFilePath = joinPaths(configFullPath, _filePath);
-
-	int	errorFound = checkCgiBin(_fullFilePath);
-	errorFound = checkCgiDirectory(_fullFilePath);
-	return (errorFound);
+	return (setExecPath(statement->getArgs()));
 }
 
 std::ostream&	CgiPass::print(std::ostream& o, size_t indent) const
 {
-	o << TStr(indent, '-') << "Cgi Pass: " << _filePath << "\t-> Full path : " << _fullFilePath << std::endl;
+	o << TStr(indent, '-') << "Cgi Pass: " << _execPath << std::endl;
 	return (o);
 }
 
@@ -691,8 +676,8 @@ int		Index::setFullFileNames(const TStr& configFullPath)
 		const TStr&	fileName = _fileNames[i];
 		TStr	fullPath = joinPaths(configFullPath, fileName);
 		
-		if (!isExistingAndAccessibleFile(fullPath, R_OK))
-			errorFound = error("Index file '" + fullPath + "' does not exist or cannot be read");
+		// if (!isExistingAndAccessibleFile(fullPath, R_OK))
+		// 	errorFound = error("Index file '" + fullPath + "' does not exist or cannot be read");
 		_fullFileNames.push_back(fullPath);
 	}
 	return (errorFound);
@@ -852,9 +837,8 @@ void		ErrorPage::inheritErrorPages(const ErrorPage& c)
 	
 	for (; it != ite; it++)
 	{
-		std::map<ushort, TStr>::const_iterator	key = _errorPages.find(it->first);
-		if (key == _errorPages.end())
-			_errorPages[key->first] = key->second;
+		if (_errorPages.find(it->first) == _errorPages.end())
+			_errorPages[it->first] = it->second;
 	}
 }
 
@@ -873,8 +857,8 @@ int		ErrorPage::setFullPath(const TStr& configFullPath)
 	for (std::map<ushort, TStr>::const_iterator	it = _errorPages.begin(); it != _errorPages.end(); it++)
 	{
 		TStr	fullPath = joinPaths(configFullPath, it->second);
-		if (!isExistingAndAccessibleFile(fullPath, R_OK))
-			errorFound = error("Error page file '" + fullPath + "' does not exist");
+		// if (!isExistingAndAccessibleFile(fullPath, R_OK))
+		// 	errorFound = error("Error page file '" + fullPath + "' does not exist");
 		_errorPagesFullPath[it->first] = fullPath;
 	}
 	return (errorFound);
@@ -1052,25 +1036,24 @@ int LocationConfig::setFullPath(void)
 	
 	_fullPath = (_alias.isSet() ? _alias.getFolderPath() : joinPaths(_root.getFolderPath(), _locationPath.getPath())); 
 	
-	if (_fullPath.empty() || !isExecutableDirectory(_fullPath))
-		return(error("Location full path '" + _fullPath + "' is not an executable directory"));
+	// if (_fullPath.empty() || !isExecutableDirectory(_fullPath))
+	// 	return(error("Location full path '" + _fullPath + "' is not an executable directory"));
+	if (_fullPath.empty())
+		return (error("Location full path is empty"));
 	return (0);
 }
 
 int	LocationConfig::validLocationConfig(void)
 {
 	int	errorFound = 0;
-	if (!_alias.isSet() && !_root.isSet())
+	if (!_alias.isSet() && !_root.isSet() && !_cgiPass.isSet())
 		errorFound = error("Empty root at server level is not covered by root or alias at location level");
-	
 	if (setFullPath())
 		errorFound = 1;
 
 	if (!_allowedMethods.isSet())
 		_allowedMethods.setDefaultMethods();
 
-	if (_cgiPass.isSet() && _cgiPass.setFullPath(_fullPath))
-		errorFound = 1;
 	if (_index.isSet() && _index.setFullFileNames(_fullPath))
 		errorFound = 1;
 	if (_errorPage.isSet() && _errorPage.setFullPath(_fullPath))
@@ -1168,8 +1151,10 @@ void	ServerConfig::validateLocations(void)
 {
 	for (size_t i = 0; i < _locations.size(); i++)
 	{
-		_locations[i]->inheritFromServerConfig(this);
-		_locations[i]->validLocationConfig();
+		LocationConfig*	locationConfig = _locations[i];
+		locationConfig->inheritFromServerConfig(this);
+		if (locationConfig->validLocationConfig())
+			error("Invalid location config in server block");
 	}
 }
 
@@ -1177,8 +1162,11 @@ int	ServerConfig::addDefaultLocationConfig(void)
 {
 	LocationConfig*	locationConfig = new LocationConfig(*this);
 
-	int errorFound = locationConfig->setLocationPath(TStr("/"));
+	int errorFound = 0;
+	errorFound = locationConfig->setLocationPath(TStr("/"));
 	errorFound = locationConfig->validLocationConfig();
+	if (errorFound)
+		error("Invalid default location config in server block");
 	_locations.push_back(locationConfig);
 	_defaultLocationConfig = locationConfig;
 	return (errorFound);
@@ -1285,28 +1273,6 @@ std::ostream&		ServerConfig::print(std::ostream& o, size_t indent = 0) const
 
 // ======================= BUILDER =============================
 
-void	Builder::parsingToBuild(void)
-{
-	for (size_t i = 0; i < _statements.size(); i++)
-	{
-		Statement* statement = _statements[i];
-		if (statement->getStatementType() == Statement::DIRECTIVE)
-		{
-			error(statement, "Expected block node at top level");
-			continue ;
-		}
-		if (statement->getName() != "server")
-		{
-			error(statement, "Expected server block at top level");
-			continue ;
-		}
-		ServerConfig*	serverConfig = buildServerConfig(statement);
-		_build.push_back(serverConfig);
-		setError(serverConfig->getError());
-	}
-}
-
-
 ServerConfig* 	Builder::buildServerConfig(Statement* statement)
 {
 	ServerConfig* serverConfig = new ServerConfig(statement);
@@ -1329,7 +1295,8 @@ ServerConfig* 	Builder::buildServerConfig(Statement* statement)
 			serverConfig->setDirective(child);
 	}
 	serverConfig->validateLocations();
-	serverConfig->validServerConfig();
+	if (serverConfig->validServerConfig())
+		setError(1);
 	serverConfig->makeRuntimeLocations();
 	return (serverConfig);
 }
@@ -1353,7 +1320,6 @@ LocationConfig*	Builder::buildLocationConfig(Statement *statement)
 }
 
 
-int		Builder::getError(void) const { return _error; }
 void	Builder::setError(int error) { _error = error; }
 
 int		Builder::error(Statement* statement, const TStr& msg)
@@ -1370,8 +1336,15 @@ int		Builder::error(const ElementConfig* elementConfig, const TStr& msg)
 	return (_error);
 }
 
+int		Builder::error(const TStr& msg)
+{
+	Console::configLog(Console::ERROR, 0, 0, "", "BUILDING", msg);
+	setError(1);
+	return (_error);
+}
 
-Builder::Builder(const std::vector<Statement*>& statements) : _statements(statements), _build(), _runtimeBuild() { parsingToBuild(); }
+
+Builder::Builder(void) : _build(), _runtimeBuild(), _error(0) {}
 
 Builder::~Builder(void)
 {
@@ -1380,10 +1353,54 @@ Builder::~Builder(void)
 	_build.clear();
 }
 
+int		Builder::getError(void) const { return _error; }
+
+const std::vector<ServerConfig*>&		  Builder::getRawBuild(void) const { return _build; }
+
 const std::map<TIPPort, HostToServerMap>& Builder::getRuntimeBuild(void) const { return _runtimeBuild; }
+
+
+void	Builder::parsingToBuild(const std::vector<Statement*>& statements)
+{
+	for (size_t i = 0; i < statements.size(); i++)
+	{
+		Statement* statement = statements[i];
+		if (statement->getStatementType() == Statement::DIRECTIVE)
+		{
+			error(statement, "Expected block node at top level");
+			continue ;
+		}
+		if (statement->getName() != "server")
+		{
+			error(statement, "Expected server block at top level");
+			continue ;
+		}
+		ServerConfig*	serverConfig = buildServerConfig(statement);
+		_build.push_back(serverConfig);
+	}
+}
+
+int		Builder::validParsingToBuild(void)
+{
+	for (size_t i = 0; i < _build.size(); i++)
+	{
+		if (_build[i] == NULL || _build[i]->getError())
+		{
+			setError(1);
+			return (1);
+		}
+	}
+	return (0);
+}
 
 void	Builder::makeRuntimeBuild(void)
 {
+	if (_build.empty())
+	{
+		error("Empty list of server configs, cannot make a valid runtime build");
+		return;
+	}
+		
 	for (size_t i = 0; i < _build.size(); i++)
 	{
 		const ServerConfig*	serverConfig = _build[i];							// 1. Store current serverConfig
@@ -1409,9 +1426,55 @@ void	Builder::makeRuntimeBuild(void)
 	}
 }
 
+int		Builder::validRuntimeBuild(void)
+{
+	if (_runtimeBuild.empty())
+		return (error("No runtime build was made"));
+	std::map<TIPPort, HostToServerMap>::const_iterator it = _runtimeBuild.begin();
+
+	int	errorFound = 0;
+	for (; it != _runtimeBuild.end(); it++)
+	{
+		const HostToServerMap& hostToServerMap = it->second;
+		if (hostToServerMap.empty())
+		{
+			std::ostringstream	oss;
+			oss << "No HostToServerMap for IP/Port '" << ipHostByteOrderToStr(it->first.first) << ":" << it->first.second << "'";
+			errorFound = error(oss.str());
+			continue ;
+		}
+		if (hostToServerMap.find("") == hostToServerMap.end())
+		{
+			std::ostringstream	oss;
+			oss << "No fallback host server for IP/Port '" << ipHostByteOrderToStr(it->first.first) << ":" << it->first.second << "'";
+			errorFound = error(oss.str());
+			continue ;
+		}
+	}
+	return (errorFound);
+}
 
 
-const ServerConfig*	Builder::findServerConfig(const TIPPort& ipPort, const TStr& host)
+std::set<TIPPort>	Builder::getBoundSockets(void) const
+{
+	std::set<TIPPort>	sockets;
+	
+	for(std::map<TIPPort, HostToServerMap>::const_iterator it = _runtimeBuild.begin();it != _runtimeBuild.end(); it++)
+		sockets.insert(it->first);
+	return (sockets);
+}
+
+const HostToServerMap&	Builder::getServerConfigsForSocket(const TIPPort& ipPort)
+{
+	static const HostToServerMap empty;
+	std::map<TIPPort, HostToServerMap>::const_iterator it = _runtimeBuild.find(ipPort);
+
+	if (it != _runtimeBuild.end())
+		return (it->second);
+	return (empty);
+}
+
+const ServerConfig*	Builder::findServerConfig(const TIPPort& ipPort, const TStr& host) const
 {
 	std::map<TIPPort, HostToServerMap>::const_iterator ipPortFound = _runtimeBuild.find(ipPort);
 	if (ipPortFound == _runtimeBuild.end())
@@ -1428,6 +1491,13 @@ const ServerConfig*	Builder::findServerConfig(const TIPPort& ipPort, const TStr&
 	return (NULL);
 }
 
+const LocationConfig*	Builder::findLocationConfig(const TIPPort& ipPort, const TStr& host, const TStr& requestedUri) const
+{
+	const ServerConfig* serverConfig = findServerConfig(ipPort, host);
+	if (serverConfig == NULL)
+		return (NULL);
+	return (serverConfig->findLocation(requestedUri));
+}
 
 void	Builder::printBuild(void) const
 {
@@ -1437,11 +1507,22 @@ void	Builder::printBuild(void) const
 
 void	Builder::printRuntimeBuild(void) const
 {
-	std::map<TIPPort, std::map<TStr, const ServerConfig*> >::const_iterator	it = _runtimeBuild.begin();
+	for (std::map<TIPPort, HostToServerMap>::const_iterator	it = _runtimeBuild.begin(); it != _runtimeBuild.end(); it++)
+	{
+		const TIPPort& ipPort = it->first;
+		const HostToServerMap& hostToServerMap = it->second;
+		
+		for (HostToServerMap::const_iterator iter = hostToServerMap.begin(); iter != hostToServerMap.end(); iter++)
+		{
+			std::cout << "********** CONFIG LISTENING TO IP '" << ipHostByteOrderToStr(ipPort.first) << "' PORT '" << ipPort.second << "' HOST '" << iter->first << "' **********" << std::endl;
+			iter->second->print(std::cout, 0);
+			std::cout << std::endl;
+		}
+	}
 }
 
-void	Builder::throwInvalid(void) const
+void	Builder::throwInvalid(const TStr& msg) const
 {
 	if (_error)
-		throw std::runtime_error("Building failed");
+		throw std::runtime_error(msg);
 }

@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:29:17 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/30 00:44:39 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/30 19:55:30 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,6 +22,7 @@ bool	strToBytes(std::string const& val, size_t& out, size_t maxBytes = 104857600
 bool	fileToStr(const std::string& filename, TStr& out);
 char	safeStrIndex(const TStr& str, size_t i);
 void	toLowerStr(TStr& str);
+TStr	ipHostByteOrderToStr(u_int32_t ip);
 
 std::ostream& operator<<(std::ostream& o, const TStrVect& vect);
 

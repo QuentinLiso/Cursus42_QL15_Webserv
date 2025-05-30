@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:29:17 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/30 00:42:57 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/30 19:56:34 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -89,6 +89,16 @@ std::ostream&	operator<<(std::ostream& o, const TStrVect& vect)
 	for (size_t i = 1; i < vect.size(); i++)
 		o << " " << vect[i];
 	return (o);
+}
+
+TStr	ipHostByteOrderToStr(u_int32_t ip)
+{
+	std::ostringstream	oss;
+	oss << ((ip >> 24) & 0xFF) << "."
+		<< ((ip >> 16) & 0xFF) << "."
+		<< ((ip >> 8) & 0xFF) << "."
+		<< (ip & 0xFF);
+	return (oss.str());
 }
 
 // Filepath utilities
