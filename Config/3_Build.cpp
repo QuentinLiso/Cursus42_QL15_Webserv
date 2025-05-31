@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/22 08:56:11 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/31 00:42:46 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/31 12:48:06 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -1319,6 +1319,40 @@ LocationConfig*	Builder::buildLocationConfig(Statement *statement)
 	return (locationConfig);
 }
 
+int	Builder::checkOverlappingWindlcartPorts(void)
+{
+	std::map<u_int16_t, std::set<u_int32_t> >	portToIpsMap;
+	int	errorFound = 0;
+
+	for (std::map<TIPPort, HostToServerMap>::const_iterator it = _runtimeBuild.begin(); it != _runtimeBuild.end(); it++)
+	{
+		u_int32_t	ip = it->first.first;
+		u_int16_t	port = it->first.second;
+		std::set<u_int32_t>& ips = portToIpsMap[port];
+
+		// If ips already contain 0.0.0.0 and we add another ip than 0.0.0.0
+		if (ips.count(0) > 0 && ip != 0)
+		{
+			std::ostringstream	oss;
+			oss << "Adding IP address " << ipHostByteOrderToStr(ip) << " to port " << port << " already listening to 0.0.0.0";
+			errorFound = error(oss.str());
+			continue ;
+		}
+		
+		// If ips not empty and we try to add 0.0.0.0
+		if (!ips.empty() && ip == 0)
+		{
+			std::ostringstream	oss;
+			oss << "Adding wildcard IP address 0.0.0.0 to port " << port << " already listening to other IP";
+			errorFound = error(oss.str());
+			continue ;
+		}
+
+		ips.insert(ip);
+	}
+	return (errorFound);
+}
+
 
 void	Builder::setError(int error) { _error = error; }
 
@@ -1451,6 +1485,9 @@ int		Builder::validRuntimeBuild(void)
 			continue ;
 		}
 	}
+
+	if (checkOverlappingWindlcartPorts())
+		errorFound = 1;
 	return (errorFound);
 }
 

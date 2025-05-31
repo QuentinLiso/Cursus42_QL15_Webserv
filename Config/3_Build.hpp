@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/22 08:45:05 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/31 00:42:53 by qliso            ###   ########.fr       */
+/*   Updated: 2025/05/31 12:53:50 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -434,6 +434,7 @@ class	Builder
 
 		ServerConfig*	buildServerConfig(Statement* statement);
 		LocationConfig*	buildLocationConfig(Statement* child);
+		int				checkOverlappingWindlcartPorts(void);
 
 		void	setError(int error);
 		int		error(Statement* statement, const TStr& msg);
