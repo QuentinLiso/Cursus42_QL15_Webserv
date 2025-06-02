@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:29:17 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/30 19:55:30 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/02 18:15:11 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,7 +25,7 @@ void	toLowerStr(TStr& str);
 TStr	ipHostByteOrderToStr(u_int32_t ip);
 
 std::ostream& operator<<(std::ostream& o, const TStrVect& vect);
-
+int		debugClose(int fd);
 
 // Filepath utilities
 std::string filepathSpecials(void);

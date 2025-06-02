@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/08 09:52:46 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/22 17:18:23 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/02 18:22:57 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,7 +15,7 @@
 
 # define DEFAULT_CONSOLE_STATE true
 # define DEFAULT_LOG_FILE_STATE false
-# define DEFAULT_LOG_DEBUG_STATE false
+# define DEFAULT_LOG_DEBUG_STATE true
 
 # include <iostream>
 # include <fstream>

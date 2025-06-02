@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/01 12:02:45 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/02 12:40:36 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/02 19:28:59 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,9 +22,21 @@ int Server::addListeningSockets(const std::set<TIPPort>& ips)
     {
         ListeningSocket* listeningSocket = new ListeningSocket(*it);
         if (listeningSocket->makeListeningSocketReady())
-            _error = 1;
-        _sockets.push_back(listeningSocket);
-        _fdToSocketMap[listeningSocket->getSockFd()] = listeningSocket;
+		{
+			delete	listeningSocket;
+			_error = 1;
+			Console::log(Console::ERROR, "Socket creation failed, FD not added to server");
+			continue ;
+		}
+		int	fd = listeningSocket->getSockFd();
+		if (fd < 0 || fd >= MAX_FD)
+		{
+			delete listeningSocket;
+			_error = 1;
+			Console::log(Console::ERROR, "Socket FD is too high, not added to server");
+			continue ;
+		}
+		_socketsfds[fd] = listeningSocket;
     }
     return (_error);
 }
@@ -46,9 +58,9 @@ int Server::registerSingleFdToEpoll(int fd)
 
 int Server::registerSocketsToEpoll(void)
 {
-    for (std::map<int, ListeningSocket*>::const_iterator it = _fdToSocketMap.begin(); it != _fdToSocketMap.end(); it++)
+    for (size_t i = 0; i < MAX_FD; i++)
     {
-        if (registerSingleFdToEpoll(it->first))
+        if (_socketsfds[i] != NULL && registerSingleFdToEpoll(i))
             _error = 1;
     }
     return (_error);
@@ -56,20 +68,27 @@ int Server::registerSocketsToEpoll(void)
 
 int Server::waitForConnections(int timeout)
 {
+	// int	loop = 4;
     while (true)
     {
         _eventsReady = epoll_wait(_epollfd, _eventQueue, 64, timeout);
+		if (_eventsReady == -1)
+		{
+			Console::log(Console::ERROR, strerror(errno));
+			continue ;
+		}
         for (int i = 0; i < _eventsReady; i++)
         {
             int fd = _eventQueue[i].data.fd;
-            if (_fdToSocketMap.count(fd))
+            if (_socketsfds[fd] != NULL)
                 acceptConnection(fd);
-            else if (_clientfds.count(fd))
-                Console::log(Console::INFO, "Got a message from client :)");
+            else if (_clientsfds[fd] != NULL)
+				getClientRequest(fd);
             else
                 Console::log(Console::ERROR, "Got an event inside a FD that is neither a listening socket nor a client open connection");
         }
     }
+	return (0);
 }
 
 int     Server::acceptConnection(int listeningSockFd)
@@ -86,10 +105,40 @@ int     Server::acceptConnection(int listeningSockFd)
 		    Console::log(Console::ERROR, "Failed to accept client connection");
 		return (-1);
 	}
-    _clientfds.insert(clientfd);
+    _clientsfds[clientfd] = new ClientConnection(clientfd);
     registerSingleFdToEpoll(clientfd);
 	logIpClient((struct sockaddr_in*)&clientAddr, listeningSockFd, clientfd);
     return (clientfd);
+}
+
+int		Server::getClientRequest(int fd)
+{
+	ClientConnection* connection = _clientsfds[fd];
+	int status = connection->readFromFd();
+	if (status == 0 || connection->isRequestComplete())
+	{
+		std::cout << "Message received : " << connection->getRequestBuffer() << std::endl;
+		send(fd, "Bonjour\n", 8, 0);
+		closeConnection(fd);
+	}
+	else if (status < 0)
+	{
+		Console::log(Console::ERROR, "Reading from fd failed");
+		closeConnection(fd);
+	}
+	return (0);
+}
+
+int	Server::closeConnection(int fd)
+{
+	if (_clientsfds[fd] != NULL)
+	{
+		delete _clientsfds[fd];
+		if (epoll_ctl(_epollfd, EPOLL_CTL_DEL, fd, NULL) == -1)
+			Console::log(Console::ERROR, strerror(errno));
+		return (debugClose(fd));
+	}
+	return (0);
 }
 
 void	Server::logIpClient(struct sockaddr_in* addr, int listeningSockFd, int clientfd) const
@@ -106,7 +155,6 @@ void	Server::logIpClient(struct sockaddr_in* addr, int listeningSockFd, int clie
     }
 }
 
-
 int Server::error(const TStr& msg)
 {
     Console::log(Console::ERROR, msg);
@@ -114,21 +162,28 @@ int Server::error(const TStr& msg)
     return (_error);
 }
 
+
+
+
 Server::Server(void)
         :   _epollfd(-1),
             _eventsReady(-1),
-            _sockets(),
-            _fdToSocketMap(),
-            _clientfds(),
+			_socketsfds(),
+			_clientsfds(),
             _error(0)
 {}
 
 Server::~Server(void)
 {
     if (_epollfd != -1)
-        close (_epollfd);
-    for(size_t i = 0; i < _sockets.size(); i++)
-        delete _sockets[i]; 
+        debugClose(_epollfd);
+    for(size_t i = 0; i < MAX_FD; i++)
+	{
+		if (_socketsfds[i] != NULL)
+			delete _socketsfds[i];
+		// if (_clientsfds[i] != NULL)
+		// 	delete _clientsfds[i];
+	}
 }
 
 void Server::makeServerReady(const std::set<TIPPort>& ips)

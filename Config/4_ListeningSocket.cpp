@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/31 12:59:45 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/02 12:02:51 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/02 18:16:20 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -89,7 +89,7 @@ int		ListeningSocket::getSockFd(void) const { return _sockfd; }
 int	ListeningSocket::closeSocket(void)
 { 
 	if (_sockfd != -1)
-		close(_sockfd);
+		debugClose(_sockfd);
 	_sockfd = -1;
 	return (0);
 }

@@ -6,11 +6,12 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:29:17 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/30 19:56:34 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/02 18:23:14 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "0_Utils.hpp"
+#include "Console.hpp"
 
 // Some utilities
 std::vector<std::string>    split(const std::string &str, const std::string& delimiters)
@@ -99,6 +100,14 @@ TStr	ipHostByteOrderToStr(u_int32_t ip)
 		<< ((ip >> 8) & 0xFF) << "."
 		<< (ip & 0xFF);
 	return (oss.str());
+}
+
+int	debugClose(int fd)
+{
+	std::ostringstream	oss;
+	oss << "[SERVER] Closing file descriptor " <<  fd;
+	Console::log(Console::DEBUG, oss.str());
+	return (close(fd));
 }
 
 // Filepath utilities
