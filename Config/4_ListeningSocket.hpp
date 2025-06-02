@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/31 12:59:44 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/01 10:39:27 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/02 11:11:22 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -41,10 +41,12 @@ class	ListeningSocket
 		bool	validSocket(void) const;
 		int		getSockFd(void) const;
 
-		void	makeListeningSocketReady(void);
+		int		makeListeningSocketReady(void);
 		int		closeSocket(void);
-		int		acceptConnections(void);
+		int		acceptConnection(void);
 		void	logIpClient(struct sockaddr_in*	addr);
+		
+		TStr	putInfoToStr(void) const;
 };
 
 

@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/31 12:59:45 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/01 10:32:17 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/02 12:02:51 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -73,13 +73,14 @@ ListeningSocket::ListeningSocket(const TIPPort& ipPort)
 
 ListeningSocket::~ListeningSocket(void) { closeSocket(); }
 
-void	ListeningSocket::makeListeningSocketReady(void)
+int	ListeningSocket::makeListeningSocketReady(void)
 {
 	if (createSocket() || setReuseAddr() || bindSocket() || listenSocket())
-		throw std::runtime_error("Socket creation failed");
+		return (1);
 	std::ostringstream	oss;
-	oss << "[SERVER] Listening on " << _ipStr << ":" << _ipPort.second;
+	oss << "[SERVER] Listening on " << _ipStr << ":" << _ipPort.second << " (Socket FD : " << _sockfd << ")";
 	Console::log(Console::INFO, oss.str());
+	return (0);
 }
 
 bool	ListeningSocket::validSocket(void) const { return _error == 0; }
@@ -93,30 +94,10 @@ int	ListeningSocket::closeSocket(void)
 	return (0);
 }
 
-int     ListeningSocket::acceptConnections(void)
+
+TStr	ListeningSocket::putInfoToStr(void) const
 {
-    struct sockaddr_storage clientAddr;
-    socklen_t               clientAddrLen = sizeof(clientAddr);
-    int        				clientfd = accept(_sockfd, (struct sockaddr *)&clientAddr, &clientAddrLen);
-    
-    if (clientfd < 0)
-	{
-		if (errno == EAGAIN || errno == EWOULDBLOCK)
-		{
-			Console::log(Console::DEBUG, "No connection available now");
-			return (-1);
-		}
-		throw std::runtime_error("Failed to accept connection");
-	}
-	logIpClient((struct sockaddr_in*)&clientAddr);
-    return (clientfd);
-}
-
-
-void	ListeningSocket::logIpClient(struct sockaddr_in* addr)
-{
-	char	ipStr[INET_ADDRSTRLEN];
-
-	if (inet_ntop(addr->sin_family, (void *)&addr->sin_addr, ipStr, sizeof(ipStr)))
-		Console::log(Console::INFO, "[SERVER] Accepted connection from " + _ipStr);
+	std::ostringstream	oss;
+	oss << "Socket FD : " << _sockfd << " attributed to IP" << _ipStr << ":" << _ipPort.second;
+	return (oss.str());
 }
