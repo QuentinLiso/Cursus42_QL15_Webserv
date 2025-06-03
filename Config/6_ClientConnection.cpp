@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:09 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/02 19:35:40 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/03 01:31:23 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,8 +15,7 @@
 
 ClientConnection::ClientConnection(int fd)
         :   _fd(fd),
-			_maxBytes(512),
-			_totalBytesRead(0),
+			_maxBytes(1024),
             _recvBuffer(),
 			_requestComplete(false)
 {}
@@ -29,21 +28,41 @@ bool	ClientConnection::isRequestComplete(void) const { return _requestComplete; 
 
 int		ClientConnection::readFromFd(void)
 {
-	char	buffer[64];
-	ssize_t	bytesRead = recv(_fd, buffer, sizeof(buffer), 0);
+	char	buffer[1024];
+	ssize_t	bytesRead = 0;
+	
+	size_t	remainingBytes = _maxBytes;
 
-	if (bytesRead > 0)
+	while (remainingBytes > 0)
 	{
-		_totalBytesRead += bytesRead;
-		if (_totalBytesRead > _maxBytes)
+		bytesRead = recv(_fd, buffer, std::min(remainingBytes, sizeof(buffer)), MSG_DONTWAIT);
+		if (bytesRead > 0)
 		{
-			_recvBuffer.append(buffer, bytesRead - (_totalBytesRead - _maxBytes));
-			_requestComplete = true;
-		}
-		else
 			_recvBuffer.append(buffer, bytesRead);
-		if (_recvBuffer.find("\n") != std::string::npos)
-			_requestComplete = true;
+			remainingBytes -= bytesRead;
+			if (static_cast<size_t>(bytesRead) < sizeof(buffer))
+				break ;
+		}
+		else if (bytesRead == 0)
+			return (0);
+		else if (errno == EAGAIN || errno == EWOULDBLOCK)
+			break;
+		else
+			return (-1);
 	}
-	return (bytesRead);
+	if (_recvBuffer.find("\n") != std::string::npos)
+		_requestComplete = true;
+	return (1);
 }
+
+
+
+
+
+
+
+
+
+
+
+

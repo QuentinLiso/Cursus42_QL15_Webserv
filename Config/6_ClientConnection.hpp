@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:03 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/02 19:33:59 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/02 23:28:59 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,8 +21,7 @@ class ClientConnection
 {
 private:
     int     _fd;
-	ssize_t	_maxBytes;
-	ssize_t	_totalBytesRead;
+	size_t	_maxBytes;
     TStr    _recvBuffer;
     bool    _requestComplete;
     
