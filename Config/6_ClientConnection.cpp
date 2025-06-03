@@ -6,60 +6,69 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:09 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/03 01:31:23 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/03 20:01:34 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "6_ClientConnection.hpp"
 
+// Client Connection
 
 ClientConnection::ClientConnection(int fd)
         :   _fd(fd),
-			_maxBytes(1024),
-            _recvBuffer(),
-			_requestComplete(false)
+			_httpRequest()
 {}
 
 ClientConnection::~ClientConnection(void) {}
 
 int	ClientConnection::getFd(void) const { return _fd; }
-const TStr&	ClientConnection::getRequestBuffer(void) const { return _recvBuffer; }
-bool	ClientConnection::isRequestComplete(void) const { return _requestComplete; }
 
 int		ClientConnection::readFromFd(void)
 {
 	char	buffer[1024];
 	ssize_t	bytesRead = 0;
-	
-	size_t	remainingBytes = _maxBytes;
+	size_t	totalBytesRead;
 
-	while (remainingBytes > 0)
+	while (true)
 	{
-		bytesRead = recv(_fd, buffer, std::min(remainingBytes, sizeof(buffer)), MSG_DONTWAIT);
+		bytesRead = recv(_fd, buffer, sizeof(buffer), MSG_DONTWAIT);
+		
 		if (bytesRead > 0)
 		{
-			_recvBuffer.append(buffer, bytesRead);
-			remainingBytes -= bytesRead;
+			totalBytesRead = _httpRequest.getBuffer().size() + static_cast<size_t>(bytesRead);
+			if (totalBytesRead >= HttpRequest::maxBytes)
+			{
+				Console::log(Console::WARNING, "Request sent by client exceeded limit");
+				return (REQUEST_TOO_LONG);
+			}
+			_httpRequest.appendToBuffer(buffer, static_cast<size_t>(bytesRead));
+			_httpRequest.setValidRequestForTesting();
 			if (static_cast<size_t>(bytesRead) < sizeof(buffer))
 				break ;
 		}
 		else if (bytesRead == 0)
-			return (0);
-		else if (errno == EAGAIN || errno == EWOULDBLOCK)
-			break;
+		{
+			Console::log(Console::WARNING, "Client disconnected before request was complete");
+			return (CONNECTION_LOST);
+		}
 		else
-			return (-1);
+		{
+			Console::log(Console::ERROR, "Reading from fd failed");
+			return (RECV_ERROR);
+		}
 	}
-	if (_recvBuffer.find("\n") != std::string::npos)
-		_requestComplete = true;
-	return (1);
+
+	static const char response[] = "HTTP/1.1 200 OK\r\n"
+									"Content-Type: text/html\r\n"
+									"Content-Length: 13\r\n"
+									"Connection: close\r\n"
+									"\r\n"
+									"Hello, world!\n";
+	// std::cout << "Message received : " << _httpRequest.getBuffer() << std::endl;
+	_httpRequest.printRequest(std::cout);
+	send(_fd, response, sizeof(response), 0);
+	return (READ_OK);
 }
-
-
-
-
-
-
 
 
 

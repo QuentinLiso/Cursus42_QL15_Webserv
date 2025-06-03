@@ -5,37 +5,26 @@
 #                                                     +:+ +:+         +:+      #
 #    By: qliso <qliso@student.42.fr>                +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
-#    Created: 2025/05/07 11:54:51 by mafritz           #+#    #+#              #
-#    Updated: 2025/06/03 20:07:17 by qliso            ###   ########.fr        #
+#    Created: 2025/06/03 13:23:11 by mafritz           #+#    #+#              #
+#    Updated: 2025/06/03 20:06:12 by qliso            ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
-NAME      := webserv
-CXX       := c++
-CXXFLAGS  := -Wall -Wextra -Werror -Wno-unused -std=c++98
-
-SRC_DIR   := Config
-
-SRCS      := \
-	$(SRC_DIR)/0_Utils.cpp \
-	$(SRC_DIR)/1_Lexing.cpp \
-	$(SRC_DIR)/2_Parsing.cpp \
-	$(SRC_DIR)/3_Build.cpp \
-	$(SRC_DIR)/4_ListeningSocket.cpp \
-	$(SRC_DIR)/5_Server.cpp \
-	$(SRC_DIR)/6_ClientConnection.cpp \
-	$(SRC_DIR)/7_HttpRequest.cpp \
-	$(SRC_DIR)/Console.cpp \
-	$(SRC_DIR)/main.cpp
-
-OBJS := $(SRCS:.cpp=.o)
+NAME        := webserv
+CXX         := c++
+CXXFLAGS    := -Wall -Wextra -Werror -Wno-unused -std=c++98
+SRCS        := 0_Utils.cpp 1_Lexing.cpp 2_Parsing.cpp 3_Build.cpp \
+              4_ListeningSocket.cpp 5_Server.cpp 6_ClientConnection.cpp \
+			  7_HttpRequest.cpp \
+              Console.cpp main.cpp
+OBJS        := $(SRCS:.cpp=.o)
 
 all: $(NAME)
 
 $(NAME): $(OBJS)
 	$(CXX) $(CXXFLAGS) $(OBJS) -o $(NAME)
 
-$(SRC_DIR)/%.o: $(SRC_DIR)/%.cpp
+%.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:

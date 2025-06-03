@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/01 12:02:45 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/03 01:19:34 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/03 17:47:42 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -115,30 +115,8 @@ int     Server::acceptConnection(int listeningSockFd)
 
 int		Server::getClientRequest(int fd)
 {
-	ClientConnection* connection = _clientsfds[fd];
-	int status = connection->readFromFd();
-	if (status > 0 && connection->isRequestComplete())
-	{
-		std::cout << "Message received : " << connection->getRequestBuffer() << std::endl;
-		send(fd, "Bonjour\n", 8, 0);
-		closeConnection(fd);
-	}
-	else if (status > 0 && !connection->isRequestComplete())
-	{
-		std::cout << "Message received, exceeding buffer limit : " << connection->getRequestBuffer() << std::endl;
-		send(fd, "Bonjour\n", 8, 0);
-		closeConnection(fd);
-	}
-	else if (status == 0)
-	{
-		Console::log(Console::WARNING, "Client disconnected before request was complete");
-		closeConnection(fd);
-	}
-	else if (status < 0)
-	{
-		Console::log(Console::ERROR, "Reading from fd failed");
-		closeConnection(fd);
-	}
+	_clientsfds[fd]->readFromFd();
+	closeConnection(fd);
 	return (0);
 }
 

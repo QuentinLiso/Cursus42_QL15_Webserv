@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:03 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/02 23:28:59 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/03 20:01:17 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,24 +16,29 @@
 #include "Includes.hpp"
 #include "Console.hpp"
 #include "0_Utils.hpp"
+#include "7_HttpRequest.hpp"
 
 class ClientConnection
 {
-private:
-    int     _fd;
-	size_t	_maxBytes;
-    TStr    _recvBuffer;
-    bool    _requestComplete;
-    
-public:
-    ClientConnection(int fd);
-    virtual ~ClientConnection(void);
+	public:
+		enum	Status
+		{
+			CONNECTION_LOST,
+			RECV_ERROR,
+			REQUEST_TOO_LONG,
+			READ_OK
+		};
+		
+	private:
+		int     	_fd;
+		HttpRequest	_httpRequest;
+		
+	public:
+		ClientConnection(int fd);
+		virtual ~ClientConnection(void);
 
-    int     getFd(void) const;
-    const TStr&	getRequestBuffer(void) const;
-	bool	isRequestComplete(void) const;
-
-	int		readFromFd(void);
+		int     getFd(void) const;
+		int		readFromFd(void);
 };
 
 
