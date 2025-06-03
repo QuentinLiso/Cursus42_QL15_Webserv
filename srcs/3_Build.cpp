@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/22 08:56:11 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/31 12:48:06 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/03 23:11:32 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -242,7 +242,7 @@ int		ServerName::set(Statement* statement)
 	updateElementConfig(statement);
 	if (_set == true)
 		warning("Duplicate server_name directive found in same block");
-	_set == true;
+	_set = true;
 	return (addServerNames(statement->getArgs()));
 }
 

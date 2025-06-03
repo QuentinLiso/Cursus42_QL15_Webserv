@@ -6,44 +6,81 @@
 #    By: qliso <qliso@student.42.fr>                +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/05/07 11:54:51 by mafritz           #+#    #+#              #
-#    Updated: 2025/06/03 20:07:17 by qliso            ###   ########.fr        #
+#    Updated: 2025/06/03 23:15:15 by qliso            ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
-NAME      := webserv
-CXX       := c++
-CXXFLAGS  := -Wall -Wextra -Werror -Wno-unused -std=c++98
+#VARIABLES
+NAME		=		webserv
 
-SRC_DIR   := Config
+SRCS_FILES	=		$(addsuffix .cpp,	\
+					0_Utils \
+					1_Lexing \
+					2_Parsing \
+					3_Build \
+					4_ListeningSocket \
+					5_Server \
+					6_ClientConnection \
+					7_HttpRequest \
+					Console \
+					main	\
+					)
+SRCS_DIR	=		./srcs/
+SRCS		=		$(addprefix $(SRCS_DIR), $(SRCS_FILES))
 
-SRCS      := \
-	$(SRC_DIR)/0_Utils.cpp \
-	$(SRC_DIR)/1_Lexing.cpp \
-	$(SRC_DIR)/2_Parsing.cpp \
-	$(SRC_DIR)/3_Build.cpp \
-	$(SRC_DIR)/4_ListeningSocket.cpp \
-	$(SRC_DIR)/5_Server.cpp \
-	$(SRC_DIR)/6_ClientConnection.cpp \
-	$(SRC_DIR)/7_HttpRequest.cpp \
-	$(SRC_DIR)/Console.cpp \
-	$(SRC_DIR)/main.cpp
 
-OBJS := $(SRCS:.cpp=.o)
+HEADERS		=		$(addsuffix .hpp,	\
+					0_Utils \
+					1_Lexing \
+					2_Parsing \
+					3_Build \
+					4_ListeningSocket \
+					5_Server \
+					6_ClientConnection \
+					7_HttpRequest \
+					Console \
+					Colors \
+					Includes \
+					) \
+					$(addsuffix .tpp, \
+					0_Utils \
+					)
 
-all: $(NAME)
+OBJS_PATH	=		objs/
+OBJS		=		$(SRCS_FILES:%.cpp=$(OBJS_PATH)%.o)
+DEPS		=		$(OBJS:.o=.d)
 
-$(NAME): $(OBJS)
-	$(CXX) $(CXXFLAGS) $(OBJS) -o $(NAME)
+CC			=		c++
+CPPFLAGS	=		-Wall -Wextra -Werror -std=c++98 -MMD -MP -I.
+RM			=		rm -rf
 
-$(SRC_DIR)/%.o: $(SRC_DIR)/%.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-clean:
-	rm -f $(OBJS)
+#RULES
+all				:	$(OBJS_PATH) $(NAME)
 
-fclean: clean
-	rm -f $(NAME)
+$(NAME)			:	$(OBJS)
+					$(CC) $(CPPFLAGS) $(OBJS) -o $(NAME)
 
-re: fclean all
+$(OBJS_PATH)%.o	:	$(SRCS_DIR)%.cpp | $(OBJS_PATH)
+					$(CC) $(CPPFLAGS) -c $< -o $@
 
-.PHONY: all clean fclean re
+$(OBJS_PATH)	:
+					@mkdir -p $(OBJS_PATH)
+
+clean			:
+					$(RM) $(OBJS_PATH)
+					@echo "\033[1;31mObject files deleted !\033[0m"
+
+fclean			:	clean		
+					$(RM) $(NAME)
+					@echo "\033[1;31m$(NAME) deleted !\033[0m"
+
+re				:	fclean all
+
+valgrind		:	all
+					valgrind --leak-check=full --trace-children=yes --track-fds=yes ./webserv Configs/lol3.conf
+
+
+-include	$(DEPS)
+
+.PHONY			:	all clean fclean re

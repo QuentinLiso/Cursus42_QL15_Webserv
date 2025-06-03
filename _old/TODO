@@ -1,5 +1,0 @@
-REGEX documentation
-
-Syntax of domain (lower case etc.)
-Other remaining validations
-Add constructors in struct ServerConfig and LocationConfig
