@@ -6,7 +6,7 @@
 #    By: qliso <qliso@student.42.fr>                +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/05/07 11:54:51 by mafritz           #+#    #+#              #
-#    Updated: 2025/06/03 23:15:15 by qliso            ###   ########.fr        #
+#    Updated: 2025/06/03 23:19:05 by qliso            ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -60,6 +60,7 @@ all				:	$(OBJS_PATH) $(NAME)
 
 $(NAME)			:	$(OBJS)
 					$(CC) $(CPPFLAGS) $(OBJS) -o $(NAME)
+					@echo "\033[1;32mWebserv created ! Try it with this command : ./webserv <config_file>\033[0m"
 
 $(OBJS_PATH)%.o	:	$(SRCS_DIR)%.cpp | $(OBJS_PATH)
 					$(CC) $(CPPFLAGS) -c $< -o $@
