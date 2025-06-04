@@ -127,3 +127,5 @@ Etapes du pgramme :
 
 		- Il renvoie ensuite une réponse HTTP sur le fd du client (fd 7) avec le corps de la réponse si c'est un fichier .html ou le résultat de l'exécution du script
 
+		- Le server ferme ensuite le fd associé à la connection client (fd 7)
+
