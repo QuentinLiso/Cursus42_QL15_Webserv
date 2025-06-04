@@ -1,0 +1,129 @@
+Résumé du projet :
+
+**************
+  Objectif :
+**************
+
+Faire un serveur web. 
+Le programme fait appel à un fichier de configuration.
+Le fichier de configuration a 2 fonctions :
+	- Indiquer quels sont les IP, ports et hosts sur lesquels recevoir la requête HTTP
+	- Indiquer comment la requête doit être interprétée (quelle méthode HTTP autorisée, où aller chercher les fichiers .html (ou autres) que la requête demande)
+
+Une fois lancé, le programme tourne en boucle et attend qu'un client envoie une requête HTTP
+Lorsqu'il reçoit une requête HTTP, le serveur envoie une réponse HTTP au client
+
+********************
+Etapes du pgramme :
+********************
+
+----------------------------------------------------------------------------------------------------
+- Interpréter le fichier de configuration en une classe Build (PHASE AVANT LE LANCEMENT DU SERVER)
+----------------------------------------------------------------------------------------------------
+	- 1 : Lexing : divise le fichier de configuration en Tokens et identifie les tokens
+		-> ex : server { 
+					listen 127.0.0.1:8080;
+					server_name example.com;
+				}
+		-> Tokens : 
+				- server 			-> Token identifier
+				- { 				-> Token open brace
+				- listen 			-> Token identifier
+				- 127.0.0.1:8080 	-> Token identifier
+				- ;					-> Token semicolon
+				- server_name		-> Token identifier
+				- example.com		-> Token identifier
+				- ;					-> Token semicolon
+				- }					-> Token close brace
+	
+	- 2 : Parsing : interprète les tokens et identifie les erreurs de syntaxe
+		-> soit j'ai un bloc avec un identifiant et des braces 							-> ex : server {}, location{}
+		-> soit j'ai une directive avec un identifiant, des arguments et un semicolon 	-> ex : listen 127.0.01:8080;
+		-> soit j'ai une erreur de syntaxe 												-> ex : deux {{ à la suite
+
+	- 3 : Build : parcourt les blocs et directives du parsing pour en faire une configuration de mon webserv
+		-> Je dois aboutir à une 	std::map	< 
+													std::pair<uint32, uint16>, 
+													std::map<std:string, ServerConfig* >
+		avec :									>
+		-> uint32 = adresse IP
+		-> uint16 = port
+		-> std::string = server_name
+		-> ServerConfig* = pointeur vers une configuration d'un bloc server
+		
+		[!] A la fin de mon build, j'ai un mapping entre : une adresse IP, un port d'un côté, un server_name et une ServerConfig de l'autre côté
+		
+		- Exemple de map :
+			-> IP : 127.0.0.1, PORT :8080, SERVER NAME : example.com, SERVER CONFIG : liste des directives déclarées dans le bloc server {} correspondant
+			-> IP : 127.0.0.1, PORT :8081, SERVER NAME : example2.com, SERVER CONFIG : liste des directives déclarées dans le bloc server {} correspondant
+			
+		[!] Un bloc server peut avoir plusieurs server_names
+		[!] On peut avoir plusieurs blocs qui écoutent sur le même ip/port à condition qu'ils n'aient pas le même server_name
+			ex valide : 
+				server { 
+					listen 127.0.0.1:8080;
+					server_name example1.com example2.com;
+				}
+				server { 
+					listen 127.0.0.1:8080;
+					server_name example3.com example4.com;
+				}
+
+			ex invalide : 
+				server { 
+					listen 127.0.0.1:8080;
+					server_name example1.com example2.com;
+				}
+				server { 
+					listen 127.0.0.1:8080;
+					server_name example1.com example4.com;
+				}
+
+
+--------------------------------------------------------------------------------
+- Ouvrir les ports, attendre la requête HTTP, la parser et renvoyer une réponse  (PHASE LANCEMENT DU SERVER)
+--------------------------------------------------------------------------------
+
+	- 4 : Server : Orchestre toutes les autres classes
+
+		- 1. Crée un epoll qui sert à suivre dès qu'il y a un changement sur un file descriptor. Le epoll est lui-même un file descriptor
+		- 2. Parcourt la map du Build et crée 1 ListeningSocket pour chaque paire IP/PORT, avec la ou les ServerConfig associées. Concrètement, un socket est un file descriptor
+		- 3. Se met en attente d'une connection sur 1 des ListeningSocket, ou en attente d'une requête sur 1 des ClientConnection.
+			-> Une connection ou requête avec un client initie un mouvement sur un file descriptor. La classe Server détecte ce mouvement avec epoll (voir étape 1)
+		- 4. Lorsqu'il reçoit une connection (et/ou une requête) d'un client sur un ListeningSocket, crée un file descriptor lié à cette connection
+		- 5. Lit les caractères qui sont envoyés par le client sur le file descriptor de sa connection. Les caractères forment une requête HTTP
+		- 6. Parse la requête HTTP
+		- 7. Analyse la requête à partir des directives du server bloc du fichier de config
+		- 8. Envoie la réponse au client
+		- 9. Ferme la connection avec le client, c'est à dire ferme le file descriptor correspondant
+
+
+	[!] Exemple concret simplifié [!]
+
+		- Les file descriptor (fd) 0, 1 et 2 sont réservés à STDIN, STDOU et STDERR
+
+		- La classe Server ouvre un fd pour epoll -> fd : 3
+		
+		- La classe Server lit la map du build qui contient 3 paires IP/PORT et ouvre donc 3 sockets c'est-à-dire 3 fd :
+			-> 127.0.0.1:8080 	-> fd : 4
+			-> 127.0.0.1:8081	-> fd : 5
+			-> 192.168.1.10:9000-> fd : 6
+		
+		- Un client se connecte au server via l'IP/PORT 127.0.0.1:8081 et envoie une requête
+			-> Le server détecte un mouvement sur le fd associé à cet IP/PORT 			-> fd : 5
+			-> Le server ouvre une connection avec ce client en ouvrant un fd dédié 	-> fd : 7
+			-> Il crée new ClientConnection(). Cette ClientConnection contient une référence :
+				- au ListeningSocket sur lequel le client s'est connecté -> fd : 5
+				- à la liste de Serverconfig associée à ce ListeningSocket (voir étape 2 du Server)
+				- au fd de cette connection -> fd : 7
+		
+		- Le server lit les caractères qui sont envoyés dans le fd 7 (avec read() ou recv()) et les met dans un buffer
+
+		- A partir de ce buffer, le server doit identifer qu'il s'agit bien d'une requête HTTP
+
+		- Puis, il compare les champs de la requête HTTP avec la ou les ServerConfig associés au ListeningSocket de la ClientConnection (cf. étape 2)
+
+		- Si tout est ok, il va chercher le fichier avec la directive 'root', ou exécuter un script avec la directive 'cgi_pass' si la requête http contient une demande .php ou .py
+
+		- Il renvoie ensuite une réponse HTTP sur le fd du client (fd 7) avec le corps de la réponse si c'est un fichier .html ou le résultat de l'exécution du script
+

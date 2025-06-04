@@ -4,8 +4,8 @@
 # include "1_Lexing.hpp"
 # include "2_Parsing.hpp"
 # include "3_Build.hpp"
-# include "4_ListeningSocket.hpp"
-# include "5_Server.hpp"
+# include "4_Server.hpp"
+# include "5_ListeningSocket.hpp"
 # include "8_HttpResponse.hpp"
 
 void		MakeConfig(const TStr& filename, Builder& builder)

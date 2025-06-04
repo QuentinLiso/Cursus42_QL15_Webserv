@@ -6,7 +6,7 @@
 #    By: qliso <qliso@student.42.fr>                +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/05/07 11:54:51 by mafritz           #+#    #+#              #
-#    Updated: 2025/06/04 09:38:40 by qliso            ###   ########.fr        #
+#    Updated: 2025/06/04 21:51:57 by qliso            ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -18,8 +18,8 @@ SRCS_FILES	=		$(addsuffix .cpp,	\
 					1_Lexing \
 					2_Parsing \
 					3_Build \
-					4_ListeningSocket \
-					5_Server \
+					4_Server \
+					5_ListeningSocket \
 					6_ClientConnection \
 					7_HttpRequest \
 					8_HttpResponse \
@@ -35,8 +35,8 @@ HEADERS		=		$(addsuffix .hpp,	\
 					1_Lexing \
 					2_Parsing \
 					3_Build \
-					4_ListeningSocket \
-					5_Server \
+					4_Server \
+					5_ListeningSocket \
 					6_ClientConnection \
 					7_HttpRequest \
 					8_HttpResponse \

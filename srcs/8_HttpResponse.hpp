@@ -6,12 +6,38 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/04 09:22:48 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/04 12:59:27 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/04 21:51:31 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef	HTTP_RESPONSE_HPP
 # define HTTP_RESPONSE_HPP
+
+#include "Includes.hpp"
+#include "Console.hpp"
+#include "0_Utils.hpp"
+
+class	HttpResponse
+{
+	private:
+		static const char* const *	httpStatusCodes;
+		static const char**			initHttpStatusCodes(void);
+		static const char*			getStatusCodeReason(unsigned short httpStatusCode);
+
+	public:
+		HttpResponse(void);
+		virtual ~HttpResponse(void);
+		
+		
+		void	print(void) const;
+
+
+};
+
+
+
+#endif
+
 
 // Status codes
 // #define CONTINUE 100
@@ -76,28 +102,3 @@
 // #define NOT_EXTENDED 510
 // #define NETWORK_AUTHENTICATION_REQUIRED 511
 
-
-#include "Includes.hpp"
-#include "Console.hpp"
-#include "0_Utils.hpp"
-
-class	HttpResponse
-{
-	private:
-		static const char* const *	httpStatusCodes;
-		static const char**			initHttpStatusCodes(void);
-		static const char*			getStatusCodeReason(unsigned short httpStatusCode);
-
-	public:
-		HttpResponse(void);
-		virtual ~HttpResponse(void);
-		
-		
-		void	print(void) const;
-
-
-};
-
-
-
-#endif
