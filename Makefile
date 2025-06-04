@@ -6,7 +6,7 @@
 #    By: qliso <qliso@student.42.fr>                +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/05/07 11:54:51 by mafritz           #+#    #+#              #
-#    Updated: 2025/06/03 23:19:05 by qliso            ###   ########.fr        #
+#    Updated: 2025/06/04 09:38:40 by qliso            ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -22,6 +22,7 @@ SRCS_FILES	=		$(addsuffix .cpp,	\
 					5_Server \
 					6_ClientConnection \
 					7_HttpRequest \
+					8_HttpResponse \
 					Console \
 					main	\
 					)
@@ -38,6 +39,7 @@ HEADERS		=		$(addsuffix .hpp,	\
 					5_Server \
 					6_ClientConnection \
 					7_HttpRequest \
+					8_HttpResponse \
 					Console \
 					Colors \
 					Includes \

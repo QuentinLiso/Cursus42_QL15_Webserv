@@ -6,6 +6,7 @@
 # include "3_Build.hpp"
 # include "4_ListeningSocket.hpp"
 # include "5_Server.hpp"
+# include "8_HttpResponse.hpp"
 
 void		MakeConfig(const TStr& filename, Builder& builder)
 {
@@ -31,12 +32,12 @@ int main(int ac, char **av)
 		Console::log(Console::ERROR, "Wrong number of arguments");
 		return (1);
 	}
-		
+	
 	try
 	{
 		Builder builder;
 		MakeConfig(av[1], builder);
-		
+	
 		Server	server;
 		server.makeServerReady(builder.getBoundSockets());
 		server.run();
