@@ -6,21 +6,21 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/01 12:02:45 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/03 17:47:42 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/04 18:21:37 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "5_Server.hpp"
 
-int Server::addListeningSockets(const std::set<TIPPort>& ips)
+int Server::addListeningSockets(const std::map<TIPPort, HostToServerMap>& runtimeBuild)
 {
     _epollfd = epoll_create1(0);
     if (_epollfd == -1)
         return (error("[SERVER] : epoll create failed, server cannot be launched"));
     
-    for (std::set<TIPPort>::const_iterator it = ips.begin(); it != ips.end(); it++)
+    for (std::map<TIPPort, HostToServerMap>::const_iterator it = runtimeBuild.begin(); it != runtimeBuild.end(); it++)
     {
-        ListeningSocket* listeningSocket = new ListeningSocket(*it);
+        ListeningSocket* listeningSocket = new ListeningSocket(it->first, it->second);
         if (listeningSocket->makeListeningSocketReady())
 		{
 			delete	listeningSocket;
@@ -83,7 +83,7 @@ int Server::waitForConnections(int timeout)
 			if (fd < 0 || fd >= MAX_FD)
 				Console::log(Console::ERROR, "Got an event inside a FD that is neither a listening socket nor a client open connection");
             else if (_socketsfds[fd] != NULL)
-                acceptConnection(fd);
+                acceptConnection(_socketsfds[fd]);
             else if (_clientsfds[fd] != NULL)
 				getClientRequest(fd);
             else
@@ -93,11 +93,11 @@ int Server::waitForConnections(int timeout)
 	return (0);
 }
 
-int     Server::acceptConnection(int listeningSockFd)
+int     Server::acceptConnection(ListeningSocket* listeningSocket)
 {
     struct sockaddr_storage clientAddr;
     socklen_t               clientAddrLen = sizeof(clientAddr);
-    int        				clientfd = accept(listeningSockFd, (struct sockaddr *)&clientAddr, &clientAddrLen);
+    int        				clientfd = accept(listeningSocket->getSockFd(), (struct sockaddr *)&clientAddr, &clientAddrLen);
     
     if (clientfd < 0)
 	{
@@ -107,9 +107,9 @@ int     Server::acceptConnection(int listeningSockFd)
 		    Console::log(Console::ERROR, "Failed to accept client connection");
 		return (-1);
 	}
-    _clientsfds[clientfd] = new ClientConnection(clientfd);
+    _clientsfds[clientfd] = new ClientConnection(clientfd, listeningSocket);
     registerSingleFdToEpoll(clientfd);
-	logIpClient((struct sockaddr_in*)&clientAddr, listeningSockFd, clientfd);
+	logIpClient((struct sockaddr_in*)&clientAddr, listeningSocket->getSockFd(), clientfd);
     return (clientfd);
 }
 
@@ -154,8 +154,6 @@ int Server::error(const TStr& msg)
 }
 
 
-
-
 Server::Server(void)
         :   _epollfd(-1),
             _eventsReady(-1),
@@ -177,9 +175,9 @@ Server::~Server(void)
 	}
 }
 
-void Server::makeServerReady(const std::set<TIPPort>& ips)
+void Server::makeServerReady(const Builder& builder)
 {
-    if (addListeningSockets(ips) || registerSocketsToEpoll())
+    if (addListeningSockets(builder.getRuntimeBuild()) || registerSocketsToEpoll())
         throw std::runtime_error ("Server could not be built");
 }
 

@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:09 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/03 20:01:34 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/04 17:14:10 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,8 +14,9 @@
 
 // Client Connection
 
-ClientConnection::ClientConnection(int fd)
+ClientConnection::ClientConnection(int fd, const ListeningSocket* relatedListeningSocket)
         :   _fd(fd),
+			_relatedListeningSocket(relatedListeningSocket),
 			_httpRequest()
 {}
 

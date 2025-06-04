@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/31 12:59:45 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/02 18:16:20 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/04 18:22:52 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -48,6 +48,7 @@ int	ListeningSocket::listenSocket(void)
 		closeSocket();
 		return (error());
 	}
+
 	return (0);
 }
 
@@ -62,8 +63,13 @@ int	ListeningSocket::error(void)
 	return (1);
 }
 
-ListeningSocket::ListeningSocket(const TIPPort& ipPort)
-		:	_ipPort(ipPort), _ipStr(ipHostByteOrderToStr(ipPort.first)), _sockfd(-1), _error(0)
+ListeningSocket::ListeningSocket(const TIPPort& ipPort, const HostToServerMap& hostToServerMap)
+		:	_ipPort(ipPort), 
+			_ipStr(ipHostByteOrderToStr(ipPort.first)), 
+			_hostToServerMap(hostToServerMap),
+			_defaultServerConfig(hostToServerMap.begin()->second),
+			_sockfd(-1), 
+			_error(0)
 {
 	std::memset(&_addr, 0, sizeof(_addr));
 	_addr.sin_family = AF_INET;
@@ -83,8 +89,10 @@ int	ListeningSocket::makeListeningSocketReady(void)
 	return (0);
 }
 
-bool	ListeningSocket::validSocket(void) const { return _error == 0; }
+const 	HostToServerMap& ListeningSocket::getHostToServerMap(void) const { return _hostToServerMap; }
+const	ServerConfig*	ListeningSocket::getDefaultServerConfig(void) const { return _defaultServerConfig; }
 int		ListeningSocket::getSockFd(void) const { return _sockfd; }
+bool	ListeningSocket::getErrorSocket(void) const { return _error == 0; }
 
 int	ListeningSocket::closeSocket(void)
 { 
@@ -94,10 +102,34 @@ int	ListeningSocket::closeSocket(void)
 	return (0);
 }
 
+const ServerConfig*	ListeningSocket::findServerConfig(const TStr& host) const
+{
+	HostToServerMap::const_iterator	it = _hostToServerMap.find(host);
+	if (it != _hostToServerMap.end())
+		return (it->second);
+	return (_defaultServerConfig);
+}
+
+const LocationConfig*	ListeningSocket::findLocationConfig(const TStr& host, const TStr& requestedUri) const
+{
+	return (findServerConfig(host)->findLocation(requestedUri));
+}
+
 
 TStr	ListeningSocket::putInfoToStr(void) const
 {
 	std::ostringstream	oss;
 	oss << "Socket FD : " << _sockfd << " attributed to IP" << _ipStr << ":" << _ipPort.second;
 	return (oss.str());
+}
+
+std::ostream&	ListeningSocket::printHostToServerMap(std::ostream& o) const
+{
+	o << "************ SERVER CONFIG FOR " << _ipStr << ":" << _ipPort.second << " (Socket FD : " << _sockfd << ")" << std::endl;
+	for (HostToServerMap::const_iterator it = _hostToServerMap.begin(); it != _hostToServerMap.end(); it++)
+	{
+		o << "Server name : " << it->first << std::endl;
+		it->second->print(o, 0);
+	}
+	return (o);
 }

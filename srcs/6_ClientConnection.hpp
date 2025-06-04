@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:03 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/04 09:23:54 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/04 17:13:40 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,6 +16,7 @@
 #include "Includes.hpp"
 #include "Console.hpp"
 #include "0_Utils.hpp"
+#include "4_ListeningSocket.hpp"
 #include "7_HttpRequest.hpp"
 
 
@@ -31,11 +32,12 @@ class ClientConnection
 		};
 		
 	private:
-		int     	_fd;
-		HttpRequest	_httpRequest;
+		int     						_fd;
+		const ListeningSocket* const	_relatedListeningSocket;
+		HttpRequest						_httpRequest;
 		
 	public:
-		ClientConnection(int fd);
+		ClientConnection(int fd, const ListeningSocket* relatedListeningSocket);
 		virtual ~ClientConnection(void);
 
 		int     getFd(void) const;

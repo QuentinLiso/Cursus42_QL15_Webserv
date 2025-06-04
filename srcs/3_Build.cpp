@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/22 08:56:11 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/03 23:11:32 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/04 18:09:20 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -1440,9 +1440,6 @@ void	Builder::makeRuntimeBuild(void)
 		const ServerConfig*	serverConfig = _build[i];							// 1. Store current serverConfig
 		TIPPort	serverIPPort = serverConfig->getListen().toRuntimeConfig();  	// 2. Compute the ip/port pair of the serverConfig
 		HostToServerMap& hostToServerMap = _runtimeBuild[serverIPPort];			// 3. For the given ip/port pair, finds the server_name-config map. If not found, creates an entry for ip/port and returns a reference to the server_name-config map which is empty
-		
-		if (hostToServerMap.empty())
-			hostToServerMap[""] = serverConfig;
 
 		const std::set<TStr>&	serverNames = serverConfig->getServerName().getServerNames();   		// 4. Retrieve the server_names of the serverConfig
 		for (std::set<TStr>::const_iterator it = serverNames.begin(); it != serverNames.end(); it++)	// 5. Loop over the server_names
@@ -1477,13 +1474,6 @@ int		Builder::validRuntimeBuild(void)
 			errorFound = error(oss.str());
 			continue ;
 		}
-		if (hostToServerMap.find("") == hostToServerMap.end())
-		{
-			std::ostringstream	oss;
-			oss << "No fallback host server for IP/Port '" << ipHostByteOrderToStr(it->first.first) << ":" << it->first.second << "'";
-			errorFound = error(oss.str());
-			continue ;
-		}
 	}
 
 	if (checkOverlappingWindlcartPorts())
@@ -1491,50 +1481,6 @@ int		Builder::validRuntimeBuild(void)
 	return (errorFound);
 }
 
-
-std::set<TIPPort>	Builder::getBoundSockets(void) const
-{
-	std::set<TIPPort>	sockets;
-	
-	for(std::map<TIPPort, HostToServerMap>::const_iterator it = _runtimeBuild.begin();it != _runtimeBuild.end(); it++)
-		sockets.insert(it->first);
-	return (sockets);
-}
-
-const HostToServerMap&	Builder::getServerConfigsForSocket(const TIPPort& ipPort)
-{
-	static const HostToServerMap empty;
-	std::map<TIPPort, HostToServerMap>::const_iterator it = _runtimeBuild.find(ipPort);
-
-	if (it != _runtimeBuild.end())
-		return (it->second);
-	return (empty);
-}
-
-const ServerConfig*	Builder::findServerConfig(const TIPPort& ipPort, const TStr& host) const
-{
-	std::map<TIPPort, HostToServerMap>::const_iterator ipPortFound = _runtimeBuild.find(ipPort);
-	if (ipPortFound == _runtimeBuild.end())
-		return (NULL);
-
-	const HostToServerMap& hostToServerMap = ipPortFound->second;
-	HostToServerMap::const_iterator	hostFound = hostToServerMap.find(host);
-	if (hostFound != hostToServerMap.end())
-		return (hostFound->second);
-
-	HostToServerMap::const_iterator	fallback = hostToServerMap.find("");
-	if (fallback != hostToServerMap.end())
-		return (fallback->second);
-	return (NULL);
-}
-
-const LocationConfig*	Builder::findLocationConfig(const TIPPort& ipPort, const TStr& host, const TStr& requestedUri) const
-{
-	const ServerConfig* serverConfig = findServerConfig(ipPort, host);
-	if (serverConfig == NULL)
-		return (NULL);
-	return (serverConfig->findLocation(requestedUri));
-}
 
 void	Builder::printBuild(void) const
 {

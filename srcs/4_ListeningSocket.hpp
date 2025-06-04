@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/31 12:59:44 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/02 11:11:22 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/04 18:21:56 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,15 +17,18 @@
 #include "Includes.hpp"
 #include "Console.hpp"
 #include "0_Utils.hpp"
+#include "3_Build.hpp"
 
 class	ListeningSocket
 {
 	private:
-		TIPPort				_ipPort;
-		TStr				_ipStr;
-		struct sockaddr_in	_addr;
-		int					_sockfd;
-		int					_error;
+		TIPPort					_ipPort;
+		TStr					_ipStr;
+		const HostToServerMap&	_hostToServerMap;
+		const ServerConfig*		_defaultServerConfig;
+		struct sockaddr_in		_addr;
+		int						_sockfd;
+		int						_error;
 
 		int		createSocket(void);
 		int		setReuseAddr(void);
@@ -35,18 +38,26 @@ class	ListeningSocket
 		int		error(void);
 
 	public:
-		ListeningSocket(const TIPPort& ipPort);
+		ListeningSocket(const TIPPort& ipPort, const HostToServerMap& hostToServerMap);
 		virtual ~ListeningSocket(void);
 
-		bool	validSocket(void) const;
+		// Getters
+		const 	HostToServerMap& getHostToServerMap(void) const;
+		const	ServerConfig*	getDefaultServerConfig(void) const;
 		int		getSockFd(void) const;
+		bool	getErrorSocket(void) const;
 
+		// Socket setup logic
 		int		makeListeningSocketReady(void);
 		int		closeSocket(void);
-		int		acceptConnection(void);
-		void	logIpClient(struct sockaddr_in*	addr);
 		
+		// Routing helpers
+		const ServerConfig*		findServerConfig(const TStr& host) const;
+		const LocationConfig*	findLocationConfig(const TStr& host, const TStr& requestedUri) const;
+
 		TStr	putInfoToStr(void) const;
+
+		std::ostream&	printHostToServerMap(std::ostream& o) const;
 };
 
 

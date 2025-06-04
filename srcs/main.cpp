@@ -39,7 +39,7 @@ int main(int ac, char **av)
 		MakeConfig(av[1], builder);
 	
 		Server	server;
-		server.makeServerReady(builder.getBoundSockets());
+		server.makeServerReady(builder);
 		server.run();
 
 	}

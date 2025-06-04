@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/22 08:45:05 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/04 13:14:33 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/04 17:56:04 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -197,7 +197,6 @@ class	CgiPass : public ElementConfig
 };
 
 
-
 class	Root : public ElementConfig
 {
 	private:
@@ -368,7 +367,6 @@ class	LocationConfig : public ElementConfig
 		std::ostream&	print(std::ostream& o, size_t indent) const;
 };
 
-
 class	ServerConfig : public ElementConfig
 {
 	private:
@@ -454,13 +452,13 @@ class	Builder
 		void				makeRuntimeBuild(void);
 		int					validRuntimeBuild(void);
 		
-		std::set<TIPPort>		getBoundSockets(void) const;
-		const HostToServerMap&	getServerConfigsForSocket(const TIPPort &ipPort);
-		const ServerConfig*		findServerConfig(const TIPPort& ipPort, const TStr& host) const;
-		const LocationConfig*	findLocationConfig(const TIPPort& ipPort, const TStr& host, const TStr& requestedUri) const;
+		// std::set<TIPPort>		getBoundSockets(void) const;
+		// const HostToServerMap&	getServerConfigsForSocket(const TIPPort &ipPort);
+		// const ServerConfig*		findServerConfig(const TIPPort& ipPort, const TStr& host) const;
+		// const LocationConfig*	findLocationConfig(const TIPPort& ipPort, const TStr& host, const TStr& requestedUri) const;
 
 		void	printBuild(void) const;
-		void	printRuntimeBuild(void) const;	// TO IMPLEMENT
+		void	printRuntimeBuild(void) const;
 		void	throwInvalid(const TStr& msg) const;
 };
 
