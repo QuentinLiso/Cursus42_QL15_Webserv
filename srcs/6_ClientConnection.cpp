@@ -6,13 +6,25 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:09 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/04 18:35:34 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/05 00:47:23 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "6_ClientConnection.hpp"
 
 // Client Connection
+
+void	ClientConnection::handleCompleteRequest(void)
+{
+	const LocationConfig*	locationConfig = routeRequestToLocation();
+	locationConfig->print(std::cout, 0);
+}
+
+const LocationConfig*	ClientConnection::routeRequestToLocation(void)
+{
+	return (_relatedListeningSocket->findLocationConfig(_httpRequest.getHost(), _httpRequest.getUri()));
+}
+
 
 ClientConnection::ClientConnection(int fd, const ListeningSocket* relatedListeningSocket)
         :   _fd(fd),
@@ -43,7 +55,8 @@ int		ClientConnection::readFromFd(void)
 				return (REQUEST_TOO_LONG);
 			}
 			_httpRequest.appendToBuffer(buffer, static_cast<size_t>(bytesRead));
-			_httpRequest.setValidRequestForTesting();
+			if (_httpRequest.setValidRequestForTesting())
+				break ;
 			if (static_cast<size_t>(bytesRead) < sizeof(buffer))
 				break ;
 		}
@@ -65,8 +78,8 @@ int		ClientConnection::readFromFd(void)
 									"Connection: close\r\n"
 									"\r\n"
 									"Hello, world!\n";
-	// std::cout << "Message received : " << _httpRequest.getBuffer() << std::endl;
-	_httpRequest.printRequest(std::cout);
+	// _httpRequest.printRequest(std::cout);
+	handleCompleteRequest();
 	send(_fd, response, sizeof(response), 0);
 	return (READ_OK);
 }

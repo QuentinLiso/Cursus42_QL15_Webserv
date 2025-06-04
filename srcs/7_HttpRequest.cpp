@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:18 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/03 20:01:36 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/04 23:46:19 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -88,7 +88,7 @@ bool	HttpRequest::setValidRequestForTesting(void)
 	// HttpRequest Logic
 	_status = HttpRequest::COMPLETE;
 	_buffer =
-        "GET / HTTP/1.1\r\n"
+        "GET /docs HTTP/1.1\r\n"
         "Host: localhost\r\n"
         "User-Agent: Mozilla/5.0 (compatible; TestBot/1.0)\r\n"
         "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"
@@ -100,7 +100,7 @@ bool	HttpRequest::setValidRequestForTesting(void)
 
 	// Request line
 	_method = "GET";
-	_uri = "/";
+	_uri = "/docseeer";
 	_version = "HTTP/1.1";
 
 	// Headers - mandatory

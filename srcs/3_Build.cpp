@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/22 08:56:11 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/04 18:09:20 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/05 00:44:45 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -1046,8 +1046,11 @@ int LocationConfig::setFullPath(void)
 int	LocationConfig::validLocationConfig(void)
 {
 	int	errorFound = 0;
-	if (!_alias.isSet() && !_root.isSet() && !_cgiPass.isSet())
-		errorFound = error("Empty root at server level is not covered by root or alias at location level");
+
+	if (!_alias.isSet() && !_root.isSet())
+		errorFound = error("Empty root at server level is not covered by root or alias or cgi_pass at location level");
+	if ((_alias.isSet() && _root.isSet()))
+		errorFound = error("Location block cannot have a root and an alias directive");
 	if (setFullPath())
 		errorFound = 1;
 

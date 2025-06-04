@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:03 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/04 21:50:45 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/04 23:33:39 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -36,12 +36,17 @@ class ClientConnection
 		const ListeningSocket* const	_relatedListeningSocket;
 		HttpRequest						_httpRequest;
 		
+		void handleCompleteRequest(void);
+		const LocationConfig*	routeRequestToLocation(void);
+
 	public:
 		ClientConnection(int fd, const ListeningSocket* relatedListeningSocket);
 		virtual ~ClientConnection(void);
 
 		int     getFd(void) const;
 		int		readFromFd(void);
+
+		
 };
 
 
