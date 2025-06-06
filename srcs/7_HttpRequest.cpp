@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:18 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/06 11:19:18 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/06 11:20:43 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -100,7 +100,7 @@ bool	HttpRequest::setValidRequestForTesting(void)
 
 	// Request line
 	_method = HttpMethods::GET;
-	_uri = "/docs/notaccessibleforread.html";
+	_uri = "/docs/notfound.html";
 	_version = "HTTP/1.1";
 
 	// Headers - mandatory
