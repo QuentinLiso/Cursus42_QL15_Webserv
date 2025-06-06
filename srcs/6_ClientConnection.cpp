@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:09 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/06 08:48:11 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/06 11:11:52 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,10 +24,20 @@ void	ClientConnection::handleCompleteRequest(void)
 	TStr	responseHeaders = _httpResponse.toString();
 	send(_fd, responseHeaders.c_str(), responseHeaders.size(), 0);
 
-	sendResponseBody(_httpResponse.getBodyFd());
+	switch (_httpResponse.getBodyType())
+	{
+		case HttpResponse::FILEDESCRIPTOR:
+			sendResponseBodyFd(_httpResponse.getBodyFd());
+			break ;
+		case HttpResponse::STRING:
+			sendResponseBodyStr(_httpResponse.getBodyStr());
+			break;
+		default :
+			break;
+	}
 }
 
-void	ClientConnection::sendResponseBody(int bodyfd)
+void	ClientConnection::sendResponseBodyFd(int bodyfd)
 {
 	char	buffer[4096];
 	ssize_t	bytesRead = 1;
@@ -55,6 +65,29 @@ void	ClientConnection::sendResponseBody(int bodyfd)
 		}
 	}	
 	close(bodyfd);
+}
+
+void	ClientConnection::sendResponseBodyStr(const TStr& bodystr)
+{
+	ssize_t	bytesSent = 0;
+	const char*	data = bodystr.c_str();
+	size_t	bytesToSend = bodystr.size();
+
+	while (bytesSent < static_cast<ssize_t>(bytesToSend))
+	{
+		ssize_t n = send(_fd, data + bytesSent, bytesToSend - bytesSent, 0);
+		if (n < 0)
+		{
+			Console::log(Console::ERROR, "Send to client encountered an error");
+			return ;
+		}
+		else if (n == 0)
+		{
+			Console::log(Console::ERROR, "Client closed connection unexpectedly");
+			return ;
+		}
+		bytesSent += n;
+	}
 }
 
 
@@ -104,15 +137,7 @@ int		ClientConnection::readFromFd(void)
 		}
 	}
 
-	// static const char response[] = "HTTP/1.1 200 OK\r\n"
-	// 								"Content-Type: text/html\r\n"
-	// 								"Content-Length: 13\r\n"
-	// 								"Connection: close\r\n"
-	// 								"\r\n"
-	// 								"Hello, world!\n";
-	// _httpRequest.printRequest(std::cout);
 	handleCompleteRequest();
-	// send(_fd, response, sizeof(response), 0);
 	return (READ_OK);
 }
 

@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/04 09:23:08 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/06 08:58:05 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/06 11:14:21 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -188,6 +188,7 @@ void	HttpResponse::handleRequestedStaticFile(const TStr& resolvedPath)
 		_statusCode = 500;
 		return ;
 	}
+	_bodyType = HttpResponse::FILEDESCRIPTOR;
 	_headers["Content-Length"] = convToStr(_requestResolvedPathStatus.st_size);
 	_headers["Content-Type"] = getMimeType(resolvedPath);
 	
@@ -212,29 +213,97 @@ void	HttpResponse::setDefaultHeaders(void)
 }
 
 
-void	HttpResponse::setStatus(int code) {
-    _statusCode = code;
+void	HttpResponse::handleErrorRequest(ushort statusCode)
+{
+	if (!canServeCustomErrorPage(statusCode))
+	{
+		_body = createDefaultStatusPage(statusCode);
+		_bodyType = HttpResponse::STRING;
+	}
 }
 
-void HttpResponse::addHeader(const TStr& key, const TStr& value) {
-    _headers[key] = value;
+TStr	HttpResponse::createDefaultStatusPage(ushort statusCode)
+{
+    const char* reasonPhrase = HttpResponse::getStatusCodeReason(statusCode);
+    std::ostringstream html;
+
+    html << "<!DOCTYPE html>\n"
+         << "<html lang=\"en\">\n"
+         << "<head>\n"
+         << "  <meta charset=\"UTF-8\">\n"
+         << "  <title>" << statusCode << " " << reasonPhrase << "</title>\n"
+         << "  <style>\n"
+         << "    body {"
+         << "      background-color: #f0f0f0;"
+         << "      color: #000;"
+         << "      font-family: sans-serif;"
+         << "      text-align: center;"
+         << "      padding-top: 10%;"
+         << "    }\n"
+         << "    h1 {"
+         << "      font-size: 3em;"
+         << "      margin-bottom: 0.5em;"
+         << "    }\n"
+         << "    p {"
+         << "      color: #666;"
+         << "    }\n"
+         << "  </style>\n"
+         << "</head>\n"
+         << "<body>\n"
+         << "  <h1>" << statusCode << " " << reasonPhrase << "</h1>\n"
+         << "  <p>Made by ft_webserv.</p>\n"
+         << "</body>\n"
+         << "</html>\n";
+
+    return (html.str());
 }
 
-void HttpResponse::setErrorResponse(int code, const std::string& root, const std::string& errorPath) {
-    setStatus(code);
-    std::string fullPath = root + errorPath;
-    if (!setBodyFromFile(fullPath)) {
-        std::ostringstream ss;
-        ss << "<h1>" << code << " " << getStatusCodeReason(code) << "</h1>";
-        setBody(ss.str(), "text/html");
-    }
+bool	HttpResponse::canServeCustomErrorPage(ushort statusCode)
+{
+	const std::map<ushort, TStr>& customErrorPages = _locationConfig->getErrorPage().getErrorPages();
+	std::map<ushort, TStr>::const_iterator it = customErrorPages.find(statusCode);
+	
+	if (it == customErrorPages.end())
+		return (false);
+	
+	const TStr& filepath = it->second;
+	struct stat	fileinfo;
+
+	if (stat(filepath.c_str(), &fileinfo) != 0)
+		return (false);
+
+	if (!S_ISREG(fileinfo.st_mode))
+		return (false);
+
+	TStr	extension = getFileExtension(filepath);
+	if (extension != ".html" && extension != ".htm")
+		return(false);
+	
+	if (access(filepath.c_str(), R_OK) != 0)
+		return (false);
+
+	_bodyfd = open(filepath.c_str(), O_RDONLY);
+	if (_bodyfd < 0)
+		return (false);
+
+	_bodyType = HttpResponse::FILEDESCRIPTOR;
+	_headers["Content-Length"] = convToStr(fileinfo.st_size);
+	_headers["Content-Type"] = getMimeType(filepath);
+	char lastModifBuf[100];
+	struct tm gmt_lastModif;
+	gmtime_r(&fileinfo.st_mtim.tv_sec, &gmt_lastModif);
+	strftime(lastModifBuf, sizeof(lastModifBuf), "%a, %d %b %Y %H:%M:%S GMT", &gmt_lastModif);
+	_headers["Last-Modified"] = TStr(lastModifBuf);
+	return (true);
 }
 
 
-HttpResponse::HttpResponse(void) : _statusCode(200), _bodyfd(-1) {}
+HttpResponse::HttpResponse(void) : _statusCode(200), _bodyType(HttpResponse::UNKNOWN), _body(), _bodyfd(-1) {}
 HttpResponse::~HttpResponse(void) {}
 
-int		HttpResponse::getBodyFd(void) const { return _bodyfd; }
+HttpResponse::BodyType		HttpResponse::getBodyType(void) const { return _bodyType; }
+int			HttpResponse::getBodyFd(void) const { return _bodyfd; }
+const TStr&	HttpResponse::getBodyStr(void) const { return _body; };
 
 void	HttpResponse::prepareResponse(const HttpRequest* httpRequest, const LocationConfig* locationConfig)
 {
@@ -260,6 +329,9 @@ void	HttpResponse::prepareResponse(const HttpRequest* httpRequest, const Locatio
 
 	// Execute based on the resolved filepath
 	handleResolvedPath(resolvedPath);
+
+	if (_statusCode > 400 && _statusCode < 512)
+		handleErrorRequest(_statusCode);
 
 	// Set headers
 	setDefaultHeaders();
@@ -289,34 +361,53 @@ void HttpResponse::print() const
 
 
 
-// void HttpResponse::setBody(const TStr& content, const TStr& contentType) {
-//     _body = content;
-//     std::ostringstream ss;
-//     ss << _body.size();
-//     _headers["Content-Length"] = ss.str();
-//     _headers["Content-Type"] = contentType;
-// }
 
-// bool HttpResponse::setBodyFromFile(const TStr& filePath)
-// {
-//     std::ifstream file(filePath.c_str(), std::ios::binary);
-//     if (!file.is_open()) {
-//         return false;
-//     }
+void HttpResponse::setErrorResponse(int code, const std::string& root, const std::string& errorPath) {
+    setStatus(code);
+    std::string fullPath = root + errorPath;
+    if (!setBodyFromFile(fullPath)) {
+        std::ostringstream ss;
+        ss << "<h1>" << code << " " << getStatusCodeReason(code) << "</h1>";
+        setBody(ss.str(), "text/html");
+    }
+}
 
-//     std::ostringstream ss;
-//     ss << file.rdbuf();
-//     file.close();
+void	HttpResponse::setStatus(int code) {
+    _statusCode = code;
+}
 
-//     TStr ext = filePath.substr(filePath.find_last_of(".") + 1);
-//     TStr contentType = "application/octet-stream";
-//     if (ext == "html" || ext == "htm") contentType = "text/html";
-//     else if (ext == "txt") contentType = "text/plain";
-//     else if (ext == "jpg" || ext == "jpeg") contentType = "image/jpeg";
-//     else if (ext == "png") contentType = "image/png";
-//     else if (ext == "css") contentType = "text/css";
-//     else if (ext == "js") contentType = "application/javascript";
+void	HttpResponse::addHeader(const TStr& key, const TStr& value) {
+    _headers[key] = value;
+}
 
-//     setBody(ss.str(), contentType);
-//     return true;
-// }
+void HttpResponse::setBody(const TStr& content, const TStr& contentType) {
+    _body = content;
+    std::ostringstream ss;
+    ss << _body.size();
+    _headers["Content-Length"] = ss.str();
+    _headers["Content-Type"] = contentType;
+}
+
+bool HttpResponse::setBodyFromFile(const TStr& filePath)
+{
+    std::ifstream file(filePath.c_str(), std::ios::binary);
+    if (!file.is_open()) {
+        return false;
+    }
+
+    std::ostringstream ss;
+    ss << file.rdbuf();
+    file.close();
+
+    TStr ext = filePath.substr(filePath.find_last_of(".") + 1);
+    TStr contentType = "application/octet-stream";
+    if (ext == "html" || ext == "htm") contentType = "text/html";
+    else if (ext == "txt") contentType = "text/plain";
+    else if (ext == "jpg" || ext == "jpeg") contentType = "image/jpeg";
+    else if (ext == "png") contentType = "image/png";
+    else if (ext == "css") contentType = "text/css";
+    else if (ext == "js") contentType = "application/javascript";
+
+    setBody(ss.str(), contentType);
+    return true;
+}

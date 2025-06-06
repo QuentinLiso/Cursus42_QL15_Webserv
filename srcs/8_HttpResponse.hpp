@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/04 09:22:48 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/06 08:57:21 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/06 11:08:23 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,6 +21,14 @@
 
 class	HttpResponse
 {
+	public :
+		enum	BodyType
+		{
+			FILEDESCRIPTOR,
+			STRING,
+			UNKNOWN
+		};
+		
 	private:
 		static const char* const *	httpStatusCodes;
 		static const char**			initHttpStatusCodes(void);
@@ -39,6 +47,8 @@ class	HttpResponse
 		unsigned short				_statusCode;
 	
 		std::map<TStr, TStr> 		_headers;
+
+		BodyType					_bodyType;
     	TStr 						_body;
 		int							_bodyfd;
 
@@ -51,16 +61,21 @@ class	HttpResponse
 		void	handleRequestedStaticFile(const TStr& resolvedPath);
 
 		void	setDefaultHeaders(void);
-		void	setStatus(int code);
-    	void	addHeader(const TStr& key, const TStr& value);
-    	void	setErrorResponse(int code, const TStr& root, const TStr& errorPath);
+		
+		TStr	createDefaultStatusPage(ushort statusCode);
+		void	handleErrorRequest(ushort statusCode);
+		bool	canServeCustomErrorPage(ushort statusCode);
+
+		
 
 
 	public:
 		HttpResponse(void);
 		virtual ~HttpResponse(void);
 
-		int		getBodyFd() const;
+		BodyType	getBodyType(void) const;
+		int			getBodyFd(void) const;
+		const TStr&	getBodyStr(void) const;
 
 		void	prepareResponse(const HttpRequest* httpRequest, const LocationConfig* locationConfig);
     	TStr	toString() const;
@@ -68,8 +83,12 @@ class	HttpResponse
 		
 		void	print(void) const;
 
-    	// void	setBody(const TStr& content, const TStr& contentType = "text/html");
-    	// bool	setBodyFromFile(const TStr& filePath);
+
+    	void	setErrorResponse(int code, const TStr& root, const TStr& errorPath);
+		void	setStatus(int code);
+    	void	addHeader(const TStr& key, const TStr& value);
+    	void	setBody(const TStr& content, const TStr& contentType = "text/html");
+    	bool	setBodyFromFile(const TStr& filePath);
 };
 
 

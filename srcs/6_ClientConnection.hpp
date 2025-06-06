@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:03 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/06 08:39:08 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/06 10:56:25 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -39,7 +39,8 @@ class ClientConnection
 		HttpResponse					_httpResponse;
 		
 		void	handleCompleteRequest(void);
-		void	sendResponseBody(int bodyfd);
+		void	sendResponseBodyFd(int bodyfd);
+		void	sendResponseBodyStr(const TStr& bodystr);
 
 	public:
 		ClientConnection(int fd, const ListeningSocket* relatedListeningSocket);
