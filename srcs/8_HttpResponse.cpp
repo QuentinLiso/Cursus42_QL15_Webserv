@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/04 09:23:08 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/04 12:59:32 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/06 08:58:05 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -90,13 +90,233 @@ const char*	HttpResponse::getStatusCodeReason(unsigned short httpStatusCode)
 	return (HttpResponse::httpStatusCodes[httpStatusCode]);
 }
 
-HttpResponse::HttpResponse(void) {}
+
+std::map<TStr, TStr> HttpResponse::mimeMap = HttpResponse::initMimeMap();
+
+std::map<TStr, TStr>	HttpResponse::initMimeMap(void)
+{
+	std::map<TStr, TStr>	mimeMap;
+	
+	mimeMap[".html"] = "text/html";
+	mimeMap[".htm"] = "text/html";
+	mimeMap[".css"] = "text/css";
+	mimeMap[".js"] = "application/javascript";
+	mimeMap[".png"] = "image/png";
+	mimeMap[".jpg"] = "image/jpeg";
+	mimeMap[".gif"] = "image/gif";
+	mimeMap[".pdf"] = "application/pdf";
+	mimeMap[".txt"] = "text/plain";
+
+	return (mimeMap);
+}
+
+const TStr& HttpResponse::getMimeType(const TStr& filepath)
+{
+	static TStr	defaultMime("application/octet-stream");
+	TStr	fileExtension = getFileExtension(filepath);
+
+	std::map<TStr, TStr>::const_iterator	it = mimeMap.find(fileExtension);
+	if (it != mimeMap.end())
+		return (it->second);
+	return (defaultMime);
+}
+
+bool	HttpResponse::isRequestHttpMethodAllowed(void)
+{
+	bool	allowed = _locationConfig->getAllowedMethods().isAllowedMethod(_httpRequest->getMethod());
+	if (!allowed)
+		Console::log(Console::DEBUG, "HTTP request method not allowed in this location");
+	return (allowed);
+}
+
+bool	HttpResponse::isResolvedPathAllowed(const TStr& resolvedPath)
+{
+	bool allowed = isValidFilepath(resolvedPath) && !containsDoubleDotsAccess(resolvedPath);
+	if (!allowed)
+		Console::log(Console::DEBUG, "HTTP request URI is an invalid filepath");
+	return (allowed);
+}
+
+void	HttpResponse::handleResolvedPath(const TStr& resolvedPath)
+{
+	int	status = stat(resolvedPath.c_str(), &_requestResolvedPathStatus);
+
+	if (status != 0)
+	{
+		_statusCode = 404;
+		return ;
+	}
+
+	if (S_ISDIR(_requestResolvedPathStatus.st_mode))
+	{
+		Console::log(Console::DEBUG, "Requested path is a directory");
+		handleRequestedDirectory(resolvedPath);
+	}
+	if (S_ISREG(_requestResolvedPathStatus.st_mode))
+	{
+		Console::log(Console::DEBUG, "Requested path is a file");
+		handleRequestedFile(resolvedPath);
+	}
+		
+}
+
+void	HttpResponse::handleRequestedDirectory(const TStr& resolvedPath)
+{
+
+}	
+
+void	HttpResponse::handleRequestedFile(const TStr& resolvedPath)
+{
+	TStr	fileExtension = getFileExtension(resolvedPath);
+
+	if (_locationConfig->getCgiExtensions().contains(fileExtension))
+		std::cout << "Handling CGI file" << std::endl;
+	else
+		handleRequestedStaticFile(resolvedPath);
+}
+
+void	HttpResponse::handleRequestedStaticFile(const TStr& resolvedPath)
+{
+	if (access(resolvedPath.c_str(), R_OK) != 0)
+	{
+		_statusCode = 403;
+		return ;
+	}
+	_bodyfd = open(resolvedPath.c_str(), O_RDONLY);
+	if (_bodyfd < 0)
+	{
+		_statusCode = 500;
+		return ;
+	}
+	_headers["Content-Length"] = convToStr(_requestResolvedPathStatus.st_size);
+	_headers["Content-Type"] = getMimeType(resolvedPath);
+	
+	char lastModifBuf[100];
+	struct tm gmt_lastModif;
+	gmtime_r(&_requestResolvedPathStatus.st_mtim.tv_sec, &gmt_lastModif);
+	strftime(lastModifBuf, sizeof(lastModifBuf), "%a, %d %b %Y %H:%M:%S GMT", &gmt_lastModif);
+	_headers["Last-Modified"] = TStr(lastModifBuf);
+}
+
+void	HttpResponse::setDefaultHeaders(void)
+{
+	_headers["Connection"] = "close";
+	_headers["Server"] = "ft_webserv";
+
+	char dateBuf[100];
+    time_t now = time(0);
+    struct tm gmt_date;
+    gmtime_r(&now, &gmt_date);
+    strftime(dateBuf, sizeof(dateBuf), "%a, %d %b %Y %H:%M:%S GMT", &gmt_date);
+    _headers["Date"] = TStr(dateBuf);
+}
+
+
+void	HttpResponse::setStatus(int code) {
+    _statusCode = code;
+}
+
+void HttpResponse::addHeader(const TStr& key, const TStr& value) {
+    _headers[key] = value;
+}
+
+void HttpResponse::setErrorResponse(int code, const std::string& root, const std::string& errorPath) {
+    setStatus(code);
+    std::string fullPath = root + errorPath;
+    if (!setBodyFromFile(fullPath)) {
+        std::ostringstream ss;
+        ss << "<h1>" << code << " " << getStatusCodeReason(code) << "</h1>";
+        setBody(ss.str(), "text/html");
+    }
+}
+
+
+HttpResponse::HttpResponse(void) : _statusCode(200), _bodyfd(-1) {}
 HttpResponse::~HttpResponse(void) {}
 
-void	HttpResponse::print(void) const
+int		HttpResponse::getBodyFd(void) const { return _bodyfd; }
+
+void	HttpResponse::prepareResponse(const HttpRequest* httpRequest, const LocationConfig* locationConfig)
 {
-	for (size_t i = 0; i < 600; i++)
+	_httpRequest = httpRequest;
+	_locationConfig = locationConfig;
+
+	_locationConfig->print(std::cout, 0);
+	// Check HTTP method is allowed in this config
+	if (!isRequestHttpMethodAllowed())
 	{
-		std::cout << "Error code : " << i << " -> " << HttpResponse::getStatusCodeReason(i) << std::endl;
+		_statusCode = 405;
+		return ;
 	}
+
+	// Build resolved filepath
+	TStr	resolvedPath(_locationConfig->getFullPath() + _httpRequest->getUri().substr(_locationConfig->getLocationPath().getPath().size()));
+	if (!isResolvedPathAllowed(resolvedPath))
+	{
+		_statusCode = 406;
+		return ;
+	}
+	normalizeFilepath(resolvedPath);
+
+	// Execute based on the resolved filepath
+	handleResolvedPath(resolvedPath);
+
+	// Set headers
+	setDefaultHeaders();
 }
+
+TStr HttpResponse::toString() const
+{
+    std::ostringstream response;
+	
+	// Set status line
+    response << "HTTP/1.1 " << _statusCode << " " << getStatusCodeReason(_statusCode) << "\r\n";
+
+    // Set headers
+    for (std::map<std::string, std::string>::const_iterator it = _headers.begin(); it != _headers.end(); ++it) {
+        response << it->first << ": " << it->second << "\r\n";
+    }
+    response << "\r\n";
+	
+    return response.str();
+}
+
+void HttpResponse::print() const 
+{
+    std::cout << toString() << std::endl;
+}
+
+
+
+
+// void HttpResponse::setBody(const TStr& content, const TStr& contentType) {
+//     _body = content;
+//     std::ostringstream ss;
+//     ss << _body.size();
+//     _headers["Content-Length"] = ss.str();
+//     _headers["Content-Type"] = contentType;
+// }
+
+// bool HttpResponse::setBodyFromFile(const TStr& filePath)
+// {
+//     std::ifstream file(filePath.c_str(), std::ios::binary);
+//     if (!file.is_open()) {
+//         return false;
+//     }
+
+//     std::ostringstream ss;
+//     ss << file.rdbuf();
+//     file.close();
+
+//     TStr ext = filePath.substr(filePath.find_last_of(".") + 1);
+//     TStr contentType = "application/octet-stream";
+//     if (ext == "html" || ext == "htm") contentType = "text/html";
+//     else if (ext == "txt") contentType = "text/plain";
+//     else if (ext == "jpg" || ext == "jpeg") contentType = "image/jpeg";
+//     else if (ext == "png") contentType = "image/png";
+//     else if (ext == "css") contentType = "text/css";
+//     else if (ext == "js") contentType = "application/javascript";
+
+//     setBody(ss.str(), contentType);
+//     return true;
+// }

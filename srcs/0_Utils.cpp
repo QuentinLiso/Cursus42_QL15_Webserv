@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:29:17 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/02 18:23:14 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/05 22:23:45 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -143,13 +143,13 @@ void		removeStrDuplicateChar(std::string& str, char c)
 	
 	if (i == std::string::npos)
 		return ;
-	std::cout << "WARNING: duplicate char '" + std::string(2, c) + "' found in '" + str + "'";
+	// std::cout << "WARNING: duplicate char '" + std::string(2, c) + "' found in '" + str + "'";
 	while (str.size() > 1 && i != std::string::npos)
 	{
 		str.erase(i + 1, 1);
 		i = str.find(doublon);
 	}
-	std::cout << " -> Normalized to '" + str + "'" << std::endl;
+	// std::cout << " -> Normalized to '" + str + "'" << std::endl;
 	return ;
 }
 
@@ -208,7 +208,7 @@ void		removeDotPaths(std::string& str)
 void		normalizeFilepath(std::string& filepath)
 {
 	removeStrDuplicateChar(filepath, '/');
-	removeStrTrailingChar(filepath, '/');
+	// removeStrTrailingChar(filepath, '/');
 	removeDotPaths(filepath);
 }
 	
@@ -251,7 +251,6 @@ bool		isExecutableDirectory(const std::string& folderPath)
 	return (true);
 }
 
-
 bool	isExistingFile(const std::string& filePath)
 {
 	struct stat	fileStatus;
@@ -264,7 +263,6 @@ bool	isExistingFile(const std::string& filePath)
 
 	return (true);
 }
-
 
 bool	isExistingAndAccessibleFile(const std::string& filePath, int accessArgs)
 {
@@ -279,6 +277,14 @@ bool	isExistingAndAccessibleFile(const std::string& filePath, int accessArgs)
 	if (access(filePath.c_str(), accessArgs))
 		return (false);
 	return (true);
+}
+
+std::string	getFileExtension(const std::string& filepath)
+{
+	size_t	dotIndex = filepath.find_last_of('.');
+	if (dotIndex == std::string::npos)
+		return (std::string(""));
+	return (filepath.substr(dotIndex, filepath.size() - dotIndex));
 }
 
 // HTTP METHODS

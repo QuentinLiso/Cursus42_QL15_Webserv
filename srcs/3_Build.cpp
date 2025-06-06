@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/22 08:56:11 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/05 00:44:45 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/05 22:30:00 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -278,6 +278,8 @@ int	LocationPath::setPath(const TStr& arg)
 	if (containsDoubleDotsAccess(_path))
 		errorFound = error("Location path cannot have '..' as path access inside the provided argument");
 
+	if (!_path.empty() && _path[_path.size() - 1] != '/')
+		_path += '/';
 	removeStrDuplicateChar(_path, '/');
 	removeDotPaths(_path);
 	return (errorFound);
@@ -476,18 +478,8 @@ int		CgiPass::setExecPath(const TStrVect& args)
 	
 	int	errorFound = 0;
 	_execPath = args[0];
-	if (_execPath[0] != '/')
-		errorFound = error("cgi_pass directive argument must be an absolute path and must start with '/'");
-	if (!isValidFilepath(_execPath))
-		errorFound = error("Invalid folder path character found in cgi_pass directive");
-	if (containsDoubleDotsAccess(_execPath))
-		errorFound = error("cgi_pass directive cannot have '..' as path access inside the provided argument");
-	// if (checkCgiBin(filePath))
-	// 	errorFound = 1;
-	// if (checkCgiDirectory(filePath))
-	// 	errorFound = 1;
-	removeStrDuplicateChar(_execPath, '/');
-	removeDotPaths(_execPath);
+	if (!CgiInterpreterMap::isValidCgiInterpreter(_execPath))
+		errorFound = error("cgi_pass directive argument is invalid. Allowed are /usr/bin + /php, /python or /perl");
 	return (errorFound);
 }
 
@@ -548,6 +540,69 @@ int	CgiPass::set(Statement* statement)
 std::ostream&	CgiPass::print(std::ostream& o, size_t indent) const
 {
 	o << TStr(indent, '-') << "Cgi Pass: " << _execPath << std::endl;
+	return (o);
+}
+
+
+// === CGI EXTENSIONS
+
+int	CgiExtensions::setExtensions(const TStrVect& args)
+{
+	if (args.empty())
+		return (error("Missing arguments in cgi_extensions directive"));
+	
+	int	errorFound = 0;
+	for (size_t i = 0; i < args.size(); i++)
+	{
+		if (CgiInterpreterMap::isValidCgiExtension(args[i]))
+		{
+			if (_extensions.insert(args[i]).second == false)
+				warning("Duplicate extension found in cgi_extensions directive");
+			continue ;
+		}
+		errorFound = error("Invalid extension found in cgi_extensions directive. Allowed are .py, .php, .pl or .cgi");			
+	}
+	return (errorFound);
+}
+
+CgiExtensions::CgiExtensions(void) : ElementConfig(), _extensions(), _set(false) {}
+
+CgiExtensions::CgiExtensions(const CgiExtensions& c) : ElementConfig(c), _extensions(c._extensions), _set(c._set) {}
+
+CgiExtensions&	CgiExtensions::operator=(const CgiExtensions& c)
+{
+	if (this != &c)
+	{
+		ElementConfig::operator=(c);
+		_extensions = c._extensions;
+		_set = c._set;
+	}
+	return (*this);
+}
+
+CgiExtensions::~CgiExtensions(void) {}
+
+const std::set<TStr>&	CgiExtensions::getExtensions(void) const { return _extensions; }
+
+bool	CgiExtensions::isSet(void) const { return _set; }
+
+bool	CgiExtensions::contains(const TStr& fileExtension) const { return (_extensions.find(fileExtension) != _extensions.end()); }
+
+int		CgiExtensions::set(Statement* statement)
+{
+	updateElementConfig(statement);
+	if (_set)
+		return (error("Duplicate cgi_extensions directive found in same block"));
+	_set = true;
+	return (setExtensions(statement->getArgs()));
+}
+
+std::ostream&	CgiExtensions::print(std::ostream& o, size_t indent) const
+{
+	o << TStr(indent, '-') << "Cgi Extensions:"; 
+	for (std::set<TStr>::const_iterator it = _extensions.begin(); it != _extensions.end(); it++)
+		o << " " << *it;
+	o << std::endl;
 	return (o);
 }
 
@@ -973,6 +1028,7 @@ const LocationPath&			LocationConfig::getLocationPath(void) const { return _loca
 const Alias&				LocationConfig::getAlias(void) const { return _alias; }
 const AllowedMethods&		LocationConfig::getAllowedMethods(void) const { return _allowedMethods; }
 const CgiPass&				LocationConfig::getCgiPass(void) const { return _cgiPass; }
+const CgiExtensions&		LocationConfig::getCgiExtensions(void) const { return _cgiExtensions; }
 const Root&					LocationConfig::getRoot(void) const { return _root; }
 const Index&				LocationConfig::getIndex(void) const { return _index; }
 const Autoindex&			LocationConfig::getAutoindex(void) const { return _autoindex; }
@@ -985,6 +1041,7 @@ int	LocationConfig::setLocationPath(const TStr& path) { return(_locationPath.set
 int	LocationConfig::setAlias(Statement* statement) { return (_alias.set(statement)); }
 int	LocationConfig::setAllowedMethods(Statement* statement) { return (_allowedMethods.set(statement)); }
 int	LocationConfig::setCgiPass(Statement* statement) { return (_cgiPass.set(statement)); }
+int	LocationConfig::setCgiExtensions(Statement* statement) { return (_cgiExtensions.set(statement)); }
 int	LocationConfig::setRoot(Statement* statement) { return (_root.set(statement)); }
 int	LocationConfig::setIndex(Statement* statement) { return (_index.set(statement)); }
 int	LocationConfig::setAutoindex(Statement* statement) { return (_autoindex.set(statement)); }
@@ -999,6 +1056,7 @@ int	LocationConfig::setDirective(Statement* statement)
 		setDirectiveMap["alias"] = &LocationConfig::setAlias;
 		setDirectiveMap["allowed_methods"] = &LocationConfig::setAllowedMethods;
 		setDirectiveMap["cgi_pass"] = &LocationConfig::setCgiPass;
+		setDirectiveMap["cgi_extensions"] = &LocationConfig::setCgiExtensions;
 		setDirectiveMap["root"] = &LocationConfig::setRoot;
 		setDirectiveMap["index"] = &LocationConfig::setIndex;
 		setDirectiveMap["autoindex"] = &LocationConfig::setAutoindex;
@@ -1050,12 +1108,17 @@ int	LocationConfig::validLocationConfig(void)
 	if (!_alias.isSet() && !_root.isSet())
 		errorFound = error("Empty root at server level is not covered by root or alias or cgi_pass at location level");
 	if ((_alias.isSet() && _root.isSet()))
-		errorFound = error("Location block cannot have a root and an alias directive");
+		errorFound = error("Location block cannot have both a root and an alias directive");
 	if (setFullPath())
 		errorFound = 1;
 
 	if (!_allowedMethods.isSet())
 		_allowedMethods.setDefaultMethods();
+
+	if (_cgiPass.isSet() != _cgiExtensions.isSet())
+		errorFound = error("Location must have either both cgi_pass and cgi_extensions directives or none");
+	if (_cgiPass.isSet() && _cgiExtensions.isSet() && !CgiInterpreterMap::areValidPairs(_cgiPass.getExecPath(), _cgiExtensions.getExtensions()))
+		errorFound = error("Invalid pairs of cgi bin and allowed cgi extensions");
 
 	if (_index.isSet() && _index.setFullFileNames(_fullPath))
 		errorFound = 1;
@@ -1072,6 +1135,7 @@ std::ostream&	LocationConfig::print(std::ostream& o, size_t indent) const
 	_alias.print(o, indent + 3);
 	_allowedMethods.print(o, indent + 3);
 	_cgiPass.print(o, indent + 3);
+	_cgiExtensions.print(o, indent + 3);
 	_root.print(o, indent + 3);
 	_index.print(o, indent + 3);
 	_autoindex.print(o, indent + 3);

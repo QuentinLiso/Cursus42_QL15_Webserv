@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:18 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/04 23:46:19 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/06 08:25:40 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -39,7 +39,7 @@ void	HttpRequest::reset(void)
 	_buffer.clear();
 	_index = 0;
 
-	_method.clear();
+	_method = HttpMethods::UNKNOWN;
 	_uri.clear();
 	_version.clear();
 
@@ -59,7 +59,7 @@ void	HttpRequest::reset(void)
 HttpRequest::Status HttpRequest::getStatus(void) const { return _status; }
 const TStr& HttpRequest::getBuffer(void) const { return _buffer; }
 
-const TStr& HttpRequest::getMethod(void) const { return _method; }
+HttpMethods::Type HttpRequest::getMethod(void) const { return _method; }
 const TStr& HttpRequest::getUri(void) const { return _uri; }
 const TStr& HttpRequest::getVersion(void) const { return _version; }
 const TStr& HttpRequest::getHost(void) const { return _host; }
@@ -99,8 +99,8 @@ bool	HttpRequest::setValidRequestForTesting(void)
         "\r\n";
 
 	// Request line
-	_method = "GET";
-	_uri = "/docseeer";
+	_method = HttpMethods::GET;
+	_uri = "/docs/index.html";
 	_version = "HTTP/1.1";
 
 	// Headers - mandatory

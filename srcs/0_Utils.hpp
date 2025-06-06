@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:29:17 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/02 18:15:11 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/05 22:20:15 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,7 +42,7 @@ std::string	joinPaths(const std::string& a, const std::string& b);
 bool		isExecutableDirectory(const std::string& folderPath);
 bool	isExistingFile(const std::string& filePath);
 bool	isExistingAndAccessibleFile(const std::string& filePath, int accessArgs);
-
+std::string	getFileExtension(const std::string& filepath);
 
 # include "0_Utils.tpp"
 

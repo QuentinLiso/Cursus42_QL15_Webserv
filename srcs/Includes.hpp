@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:21:21 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/01 10:51:55 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/05 23:37:31 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,6 +33,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/epoll.h>
+#include <fcntl.h>
 
 class Token;
 class Lexer;
@@ -59,6 +60,8 @@ namespace HttpMethods
 		DELETE,
 		PUT
 	};
+
+	
 };
 
 

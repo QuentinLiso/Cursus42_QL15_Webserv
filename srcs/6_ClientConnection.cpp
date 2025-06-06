@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:09 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/05 00:47:23 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/06 08:48:11 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,13 +16,45 @@
 
 void	ClientConnection::handleCompleteRequest(void)
 {
-	const LocationConfig*	locationConfig = routeRequestToLocation();
-	locationConfig->print(std::cout, 0);
+	const LocationConfig* loc = _relatedListeningSocket->findLocationConfig(_httpRequest.getHost(), _httpRequest.getUri());
+	
+	_httpResponse.prepareResponse(&_httpRequest, loc);
+
+	// _httpResponse.print();
+	TStr	responseHeaders = _httpResponse.toString();
+	send(_fd, responseHeaders.c_str(), responseHeaders.size(), 0);
+
+	sendResponseBody(_httpResponse.getBodyFd());
 }
 
-const LocationConfig*	ClientConnection::routeRequestToLocation(void)
+void	ClientConnection::sendResponseBody(int bodyfd)
 {
-	return (_relatedListeningSocket->findLocationConfig(_httpRequest.getHost(), _httpRequest.getUri()));
+	char	buffer[4096];
+	ssize_t	bytesRead = 1;
+	ssize_t	bytesSent = 0;
+	
+	while (bytesRead > 0)
+	{
+		bytesRead = read(bodyfd, buffer, sizeof(buffer));
+		if (bytesRead < 0)
+		{
+			Console::log(Console::ERROR, "Reading body file encountered an error");
+			break ;
+		}
+
+		while (bytesSent < bytesRead)
+		{
+			ssize_t n = send(_fd, buffer, bytesRead, 0);
+			if (n <= 0)
+			{
+				Console::log(Console::ERROR, "Send to client encountered an error");
+				close(bodyfd);
+				return ;
+			}
+			bytesSent += n;
+		}
+	}	
+	close(bodyfd);
 }
 
 
@@ -72,15 +104,15 @@ int		ClientConnection::readFromFd(void)
 		}
 	}
 
-	static const char response[] = "HTTP/1.1 200 OK\r\n"
-									"Content-Type: text/html\r\n"
-									"Content-Length: 13\r\n"
-									"Connection: close\r\n"
-									"\r\n"
-									"Hello, world!\n";
+	// static const char response[] = "HTTP/1.1 200 OK\r\n"
+	// 								"Content-Type: text/html\r\n"
+	// 								"Content-Length: 13\r\n"
+	// 								"Connection: close\r\n"
+	// 								"\r\n"
+	// 								"Hello, world!\n";
 	// _httpRequest.printRequest(std::cout);
 	handleCompleteRequest();
-	send(_fd, response, sizeof(response), 0);
+	// send(_fd, response, sizeof(response), 0);
 	return (READ_OK);
 }
 

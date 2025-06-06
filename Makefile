@@ -6,7 +6,7 @@
 #    By: qliso <qliso@student.42.fr>                +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/05/07 11:54:51 by mafritz           #+#    #+#              #
-#    Updated: 2025/06/04 21:51:57 by qliso            ###   ########.fr        #
+#    Updated: 2025/06/05 20:00:44 by qliso            ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -15,6 +15,7 @@ NAME		=		webserv
 
 SRCS_FILES	=		$(addsuffix .cpp,	\
 					0_Utils \
+					0_CgiInterpreterMap \
 					1_Lexing \
 					2_Parsing \
 					3_Build \
@@ -32,6 +33,7 @@ SRCS		=		$(addprefix $(SRCS_DIR), $(SRCS_FILES))
 
 HEADERS		=		$(addsuffix .hpp,	\
 					0_Utils \
+					0_CgiInterpreterMap \
 					1_Lexing \
 					2_Parsing \
 					3_Build \
@@ -53,7 +55,7 @@ OBJS		=		$(SRCS_FILES:%.cpp=$(OBJS_PATH)%.o)
 DEPS		=		$(OBJS:.o=.d)
 
 CC			=		c++
-CPPFLAGS	=		-Wall -Wextra -Werror -std=c++98 -MMD -MP -I.
+CPPFLAGS	=		-Wall -Wextra -Werror -Wno-unused -std=c++98 -MMD -MP -I.
 RM			=		rm -rf
 
 

@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/04 09:22:48 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/04 21:51:31 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/06 08:57:21 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,6 +16,8 @@
 #include "Includes.hpp"
 #include "Console.hpp"
 #include "0_Utils.hpp"
+#include "3_Build.hpp"
+#include "7_HttpRequest.hpp"
 
 class	HttpResponse
 {
@@ -24,14 +26,50 @@ class	HttpResponse
 		static const char**			initHttpStatusCodes(void);
 		static const char*			getStatusCodeReason(unsigned short httpStatusCode);
 
+
+		static std::map<TStr, TStr>	mimeMap;
+		static std::map<TStr, TStr>	initMimeMap(void);
+		static const TStr&			getMimeType(const TStr& filepath);	
+		
+		const HttpRequest*			_httpRequest;
+		const LocationConfig*		_locationConfig;
+		
+
+		struct stat					_requestResolvedPathStatus;
+		unsigned short				_statusCode;
+	
+		std::map<TStr, TStr> 		_headers;
+    	TStr 						_body;
+		int							_bodyfd;
+
+
+		bool	isRequestHttpMethodAllowed(void);
+		bool	isResolvedPathAllowed(const TStr& resolvedPath);
+		void	handleResolvedPath(const TStr& resolvedPath);
+		void	handleRequestedDirectory(const TStr& resolvedPath);
+		void	handleRequestedFile(const TStr& resolvedPath);
+		void	handleRequestedStaticFile(const TStr& resolvedPath);
+
+		void	setDefaultHeaders(void);
+		void	setStatus(int code);
+    	void	addHeader(const TStr& key, const TStr& value);
+    	void	setErrorResponse(int code, const TStr& root, const TStr& errorPath);
+
+
 	public:
 		HttpResponse(void);
 		virtual ~HttpResponse(void);
-		
+
+		int		getBodyFd() const;
+
+		void	prepareResponse(const HttpRequest* httpRequest, const LocationConfig* locationConfig);
+    	TStr	toString() const;
+
 		
 		void	print(void) const;
 
-
+    	// void	setBody(const TStr& content, const TStr& contentType = "text/html");
+    	// bool	setBodyFromFile(const TStr& filePath);
 };
 
 

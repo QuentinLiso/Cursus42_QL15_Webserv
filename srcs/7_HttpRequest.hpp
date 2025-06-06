@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:15 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/04 09:17:28 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/05 10:49:34 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -38,9 +38,9 @@ class	HttpRequest
 		size_t	_index;
 		
 		// Request line
-		TStr	_method;
-		TStr	_uri;
-		TStr	_version;
+		HttpMethods::Type	_method;
+		TStr				_uri;
+		TStr				_version;
 
 		// Headers - mandatory
 		TStr	_host;
@@ -73,7 +73,7 @@ class	HttpRequest
 		HttpRequest::Status	getStatus(void) const;
 		const TStr&	getBuffer(void) const;
 
-		const TStr& getMethod(void) const;
+		HttpMethods::Type getMethod(void) const;
 		const TStr& getUri(void) const;
 		const TStr& getVersion(void) const;
 		const TStr& getHost(void) const;

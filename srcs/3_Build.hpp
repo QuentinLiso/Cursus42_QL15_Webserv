@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/22 08:45:05 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/04 17:56:04 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/05 22:29:15 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,6 +14,7 @@
 # define BUILD_HPP
 
 # include "Includes.hpp"
+# include "0_CgiInterpreterMap.hpp"
 # include "0_Utils.hpp"
 # include "1_Lexing.hpp"
 # include "2_Parsing.hpp"
@@ -196,6 +197,28 @@ class	CgiPass : public ElementConfig
 		virtual std::ostream&	print(std::ostream& o, size_t indent) const;
 };
 
+class	CgiExtensions : public ElementConfig
+{
+	private:
+		std::set<TStr>	_extensions;
+		bool			_set;
+
+		int		setExtensions(const TStrVect& args);
+		
+	public:
+		CgiExtensions(void);
+		CgiExtensions(const CgiExtensions& c);
+		CgiExtensions& operator=(const CgiExtensions& c);
+		~CgiExtensions(void);
+
+		const std::set<TStr>&	getExtensions(void) const;
+		bool					isSet(void) const;
+		bool					contains(const TStr& fileExtension) const;
+
+		int	set(Statement* statement);
+		virtual std::ostream& print(std::ostream& o, size_t indent) const;
+};
+
 
 class	Root : public ElementConfig
 {
@@ -321,6 +344,7 @@ class	LocationConfig : public ElementConfig
 		Alias				_alias;
 		AllowedMethods		_allowedMethods;
 		CgiPass				_cgiPass;
+		CgiExtensions		_cgiExtensions;
 		Root				_root;
 		Index				_index;
 		Autoindex			_autoindex;
@@ -339,6 +363,7 @@ class	LocationConfig : public ElementConfig
 		const Alias&				getAlias(void) const;
 		const AllowedMethods&		getAllowedMethods(void) const;
 		const CgiPass&				getCgiPass(void) const;
+		const CgiExtensions&		getCgiExtensions(void) const;
 		const Root&					getRoot(void) const;
 		const Index&				getIndex(void) const;
 		const Autoindex&			getAutoindex(void) const;
@@ -352,6 +377,7 @@ class	LocationConfig : public ElementConfig
 		int	setAlias(Statement* statement);
 		int	setAllowedMethods(Statement* statement);
 		int	setCgiPass(Statement* statement);
+		int	setCgiExtensions(Statement* statement);
 		int	setRoot(Statement* statement);
 		int	setIndex(Statement* statement);
 		int	setAutoindex(Statement* statement);
