@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/04 09:22:48 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/06 11:08:23 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/07 11:57:01 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,10 +44,9 @@ class	HttpResponse
 		
 
 		struct stat					_requestResolvedPathStatus;
-		unsigned short				_statusCode;
-	
-		std::map<TStr, TStr> 		_headers;
 
+		unsigned short				_statusCode;	
+		std::map<TStr, TStr> 		_headers;
 		BodyType					_bodyType;
     	TStr 						_body;
 		int							_bodyfd;
@@ -55,10 +54,13 @@ class	HttpResponse
 
 		bool	isRequestHttpMethodAllowed(void);
 		bool	isResolvedPathAllowed(const TStr& resolvedPath);
-		void	handleResolvedPath(const TStr& resolvedPath);
-		void	handleRequestedDirectory(const TStr& resolvedPath);
-		void	handleRequestedFile(const TStr& resolvedPath);
-		void	handleRequestedStaticFile(const TStr& resolvedPath);
+		bool	handleResolvedPath(const TStr& resolvedPath);
+		bool	handleRequestedDirectory(const TStr& resolvedPath);
+		bool	handleRequestedDirectoryIndexFile(const TStr& filepath);
+		bool	handleRequestedDirectoryAutoindex(const TStr& folderpath);
+
+		bool	handleRequestedFile(const TStr& resolvedPath);
+		bool	handleRequestedStaticFile(const TStr& resolvedPath);
 
 		void	setDefaultHeaders(void);
 		

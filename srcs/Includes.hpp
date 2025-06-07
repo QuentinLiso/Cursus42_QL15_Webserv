@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:21:21 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/05 23:37:31 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/07 10:48:06 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -34,6 +34,8 @@
 #include <arpa/inet.h>
 #include <sys/epoll.h>
 #include <fcntl.h>
+#include <sys/types.h>
+#include <dirent.h>
 
 class Token;
 class Lexer;

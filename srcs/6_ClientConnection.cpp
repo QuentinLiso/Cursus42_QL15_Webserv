@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:09 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/06 11:11:52 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/07 12:09:23 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,6 +18,7 @@ void	ClientConnection::handleCompleteRequest(void)
 {
 	const LocationConfig* loc = _relatedListeningSocket->findLocationConfig(_httpRequest.getHost(), _httpRequest.getUri());
 	
+	_httpRequest.printRequest(std::cout);
 	_httpResponse.prepareResponse(&_httpRequest, loc);
 
 	// _httpResponse.print();

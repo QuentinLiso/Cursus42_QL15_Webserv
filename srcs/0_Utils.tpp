@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:29:17 by qliso             #+#    #+#             */
-/*   Updated: 2025/05/29 15:55:56 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/07 11:36:36 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,7 +37,7 @@ bool	strToVal(const std::string& val, T& out)
 }
 
 template < typename T>
-std::string	convToStr(T& val)
+std::string	convToStr(T val)
 {
 	std::ostringstream	oss;
 	oss << val;
