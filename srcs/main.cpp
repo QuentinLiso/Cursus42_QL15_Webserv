@@ -27,26 +27,27 @@ void		MakeConfig(const TStr& filename, Builder& builder)
 
 int main(int ac, char **av)
 {
-	if (ac != 2)
-	{
-		Console::log(Console::ERROR, "Wrong number of arguments");
-		return (1);
-	}
-	
-	try
-	{
-		Builder builder;
-		MakeConfig(av[1], builder);
-	
-		Server	server;
-		server.makeServerReady(builder);
-		server.run();
+	// if (ac != 2)
+	// {
+	// 	Console::log(Console::ERROR, "Wrong number of arguments");
+	// 	return (1);
+	// }
+	// try
+	// {
+	// 	Builder builder;
+	// 	MakeConfig(av[1], builder);
+	// 	Server	server;
+	// 	server.makeServerReady(builder);
+	// 	server.run();
+	// }
+	// catch(const std::exception& e)
+	// {
+	// 	std::cerr << e.what() << '\n';
+	// }
 
-	}
-	catch(const std::exception& e)
-	{
-		std::cerr << e.what() << '\n';
-	}
+	HttpRequest	request;
+	request.setBuffer("Salut\r\nLes\r\nAmis");
+	std::cout << request.getBuffer() << std::endl;
 
 	return (0);
 }
