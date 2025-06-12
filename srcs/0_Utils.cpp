@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:29:17 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/05 22:23:45 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/11 19:55:53 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -80,6 +80,40 @@ void	toLowerStr(TStr& str)
 {
 	for (TStr::iterator it = str.begin(); it != str.end(); it++)
 		*it = std::tolower(static_cast<unsigned char>(*it));
+}
+
+TStr	createLowercaseStr(const TStr& str)
+{
+	size_t	len = str.size();
+	TStr	lowerCase;
+
+	lowerCase.reserve(len);
+	for (size_t i = 0; i < len; i++)
+		lowerCase += std::tolower(str[i]);
+	return (lowerCase);
+}
+
+bool	areCaseInsensitiveEquals(const TStr& a, const TStr& b)
+{
+	if (a.size() != b.size())
+		return (false);
+	for (size_t i = 0; i < a.size(); i++)
+		if (std::tolower(a[i]) != std::tolower(b[i]))
+			return (false);
+	return (true);
+}
+
+TStr	trimHeadAndTail(const TStr& str)
+{
+	if (str.empty())
+		return (TStr());
+
+	size_t	start = str.find_first_not_of(" \t");
+	if (start == TStr::npos)	// No character that is not a whitespace was found - i.e only whitespaces
+		return (TStr());
+
+	size_t	end = str.find_last_not_of(" \t");
+	return (str.substr(start, end - start + 1));
 }
 
 std::ostream&	operator<<(std::ostream& o, const TStrVect& vect)

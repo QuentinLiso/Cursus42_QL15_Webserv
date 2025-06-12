@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/04 09:22:48 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/07 11:57:01 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/12 19:10:55 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,29 +22,33 @@
 class	HttpResponse
 {
 	public :
+		// 0 - Enums
 		enum	BodyType
 		{
 			FILEDESCRIPTOR,
 			STRING,
 			UNKNOWN
 		};
-		
+	
+		// 1 - Contstructor & destructor
+		HttpResponse(void);
+		virtual ~HttpResponse(void);
+
+	
 	private:
+		// 2 - Static variables
 		static const char* const *	httpStatusCodes;
 		static const char**			initHttpStatusCodes(void);
 		static const char*			getStatusCodeReason(unsigned short httpStatusCode);
 
-
 		static std::map<TStr, TStr>	mimeMap;
 		static std::map<TStr, TStr>	initMimeMap(void);
 		static const TStr&			getMimeType(const TStr& filepath);	
-		
+
+		// 3 - Variables
 		const HttpRequest*			_httpRequest;
 		const LocationConfig*		_locationConfig;
-		
-
 		struct stat					_requestResolvedPathStatus;
-
 		unsigned short				_statusCode;	
 		std::map<TStr, TStr> 		_headers;
 		BodyType					_bodyType;
@@ -52,45 +56,47 @@ class	HttpResponse
 		int							_bodyfd;
 
 
+		// 4 - Set headers that will be present in all requests
+		void	setDefaultHeaders(void);
+
+		// 5 - Handling bad requests
 		bool	isRequestHttpMethodAllowed(void);
 		bool	isResolvedPathAllowed(const TStr& resolvedPath);
+
+		// 6 - Handling well formed requests
 		bool	handleResolvedPath(const TStr& resolvedPath);
+
+		// 7 - Handling a request for a directory
 		bool	handleRequestedDirectory(const TStr& resolvedPath);
 		bool	handleRequestedDirectoryIndexFile(const TStr& filepath);
 		bool	handleRequestedDirectoryAutoindex(const TStr& folderpath);
 
+		// 8 - Handling a request for a static file
 		bool	handleRequestedFile(const TStr& resolvedPath);
 		bool	handleRequestedStaticFile(const TStr& resolvedPath);
 
-		void	setDefaultHeaders(void);
-		
+		// 9 - Handling error requests
 		TStr	createDefaultStatusPage(ushort statusCode);
 		void	handleErrorRequest(ushort statusCode);
 		bool	canServeCustomErrorPage(ushort statusCode);
 
 		
-
-
 	public:
-		HttpResponse(void);
-		virtual ~HttpResponse(void);
-
+		// 10 - Getters
 		BodyType	getBodyType(void) const;
 		int			getBodyFd(void) const;
 		const TStr&	getBodyStr(void) const;
 
+		// 11 - Set HttpResponse fields from request
 		void	prepareResponse(const HttpRequest* httpRequest, const LocationConfig* locationConfig);
-    	TStr	toString() const;
+		void	prepareErrorResponse(unsigned short code);
+    	
+		// 12 - Convert HttpResponse fields to a string to send
+		TStr	toString() const;
 
-		
+		// 13 - Debug printing
 		void	print(void) const;
 
-
-    	void	setErrorResponse(int code, const TStr& root, const TStr& errorPath);
-		void	setStatus(int code);
-    	void	addHeader(const TStr& key, const TStr& value);
-    	void	setBody(const TStr& content, const TStr& contentType = "text/html");
-    	bool	setBodyFromFile(const TStr& filePath);
 };
 
 

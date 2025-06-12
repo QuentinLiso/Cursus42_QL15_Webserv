@@ -6,19 +6,30 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:09 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/07 12:09:23 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/12 19:11:47 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "6_ClientConnection.hpp"
 
-// Client Connection
 
+// 1 - Constructor destructor
+
+ClientConnection::ClientConnection(int fd, const ListeningSocket* relatedListeningSocket)
+        :   _fd(fd),
+			_relatedListeningSocket(relatedListeningSocket),
+			_httpRequest()
+{}
+
+ClientConnection::~ClientConnection(void) {}
+
+
+// 3 - Handling request and response after reading
 void	ClientConnection::handleCompleteRequest(void)
 {
-	const LocationConfig* loc = _relatedListeningSocket->findLocationConfig(_httpRequest.getHost(), _httpRequest.getUri());
+	const LocationConfig* loc = _relatedListeningSocket->findLocationConfig(_httpRequest.getHostAddress(), _httpRequest.getUriPath());
 	
-	_httpRequest.printRequest(std::cout);
+	// _httpRequest.printRequest(std::cout);
 	_httpResponse.prepareResponse(&_httpRequest, loc);
 
 	// _httpResponse.print();
@@ -36,6 +47,15 @@ void	ClientConnection::handleCompleteRequest(void)
 		default :
 			break;
 	}
+}
+
+void	ClientConnection::handleErrorRequest(unsigned short code)
+{
+	_httpResponse.prepareErrorResponse(code);
+	TStr	responseHeaders = _httpResponse.toString();
+
+	send(_fd, responseHeaders.c_str(), responseHeaders.size(), 0);
+	sendResponseBodyStr(_httpResponse.getBodyStr());
 }
 
 void	ClientConnection::sendResponseBodyFd(int bodyfd)
@@ -92,38 +112,29 @@ void	ClientConnection::sendResponseBodyStr(const TStr& bodystr)
 }
 
 
-ClientConnection::ClientConnection(int fd, const ListeningSocket* relatedListeningSocket)
-        :   _fd(fd),
-			_relatedListeningSocket(relatedListeningSocket),
-			_httpRequest()
-{}
-
-ClientConnection::~ClientConnection(void) {}
+// 4 - Getter
 
 int	ClientConnection::getFd(void) const { return _fd; }
 
+
+// 5 - Reading function called from server loop epoll
+
 int		ClientConnection::readFromFd(void)
 {
-	char	buffer[1024];
+	char	recvBuffer[1024];
 	ssize_t	bytesRead = 0;
 	size_t	totalBytesRead;
 
 	while (true)
 	{
-		bytesRead = recv(_fd, buffer, sizeof(buffer), MSG_DONTWAIT);
+		bytesRead = recv(_fd, recvBuffer, sizeof(recvBuffer), MSG_DONTWAIT);
 		
 		if (bytesRead > 0)
 		{
-			totalBytesRead = _httpRequest.getBuffer().size() + static_cast<size_t>(bytesRead);
-			if (totalBytesRead >= HttpRequest::maxBytes)
-			{
-				Console::log(Console::WARNING, "Request sent by client exceeded limit");
-				return (REQUEST_TOO_LONG);
-			}
-			_httpRequest.appendToBuffer(buffer, static_cast<size_t>(bytesRead));
-			if (_httpRequest.setValidRequestForTesting())
+			_httpRequest.appendToBuffer(recvBuffer, static_cast<size_t>(bytesRead));
+			if (_httpRequest.tryParseHttpRequest())
 				break ;
-			if (static_cast<size_t>(bytesRead) < sizeof(buffer))
+			if (static_cast<size_t>(bytesRead) < sizeof(recvBuffer))
 				break ;
 		}
 		else if (bytesRead == 0)
@@ -134,11 +145,15 @@ int		ClientConnection::readFromFd(void)
 		else
 		{
 			Console::log(Console::ERROR, "Reading from fd failed");
+			handleErrorRequest(500);
 			return (RECV_ERROR);
 		}
 	}
 
-	handleCompleteRequest();
+	if (_httpRequest.getStatus() == HttpRequest::INVALID)
+		handleErrorRequest(_httpRequest.getStatusCode());
+	else
+		handleCompleteRequest();
 	return (READ_OK);
 }
 

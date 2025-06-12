@@ -6,11 +6,18 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/04 09:23:08 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/07 12:28:08 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/12 19:11:00 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "8_HttpResponse.hpp"
+
+// 1 - Constructor & destructor
+
+HttpResponse::HttpResponse(void) : _statusCode(200), _bodyType(HttpResponse::UNKNOWN), _body(), _bodyfd(-1) {}
+HttpResponse::~HttpResponse(void) {}
+
+// 2 - Static variables
 
 const char*	const* HttpResponse::httpStatusCodes = HttpResponse::initHttpStatusCodes();
 
@@ -121,7 +128,7 @@ const TStr& HttpResponse::getMimeType(const TStr& filepath)
 	return (defaultMime);
 }
 
-// Set Headers that will be present in all requests
+// 4 - Set Headers that will be present in all requests
 
 void	HttpResponse::setDefaultHeaders(void)
 {
@@ -136,7 +143,7 @@ void	HttpResponse::setDefaultHeaders(void)
     _headers["Date"] = TStr(dateBuf);
 }
 
-// Handling bad requests (disallowed method + invalid request URI)
+// 5 - Handling bad requests (disallowed method + invalid request URI)
 
 bool	HttpResponse::isRequestHttpMethodAllowed(void)
 {
@@ -154,7 +161,7 @@ bool	HttpResponse::isResolvedPathAllowed(const TStr& resolvedPath)
 	return (allowed);
 }
 
-// Handling well formed requests
+// 6 - Handling well formed requests
 
 bool	HttpResponse::handleResolvedPath(const TStr& resolvedPath)
 {
@@ -179,7 +186,7 @@ bool	HttpResponse::handleResolvedPath(const TStr& resolvedPath)
 	return (false);
 }
 
-// Handling a request for a directory
+// 7 - Handling a request for a directory
 
 bool	HttpResponse::handleRequestedDirectory(const TStr& resolvedPath)
 {
@@ -305,7 +312,7 @@ bool	HttpResponse::handleRequestedDirectoryAutoindex(const TStr& folderpath)
 	return (true);
 }
 
-// Handling a request for a static file
+// 8 - Handling a request for a static file
 
 bool	HttpResponse::handleRequestedFile(const TStr& resolvedPath)
 {
@@ -346,7 +353,7 @@ bool	HttpResponse::handleRequestedStaticFile(const TStr& resolvedPath)
 	return (true);
 }
 
-// Handling error requests
+// 9 - Handling error requests
 
 void	HttpResponse::handleErrorRequest(ushort statusCode)
 {
@@ -434,14 +441,13 @@ bool	HttpResponse::canServeCustomErrorPage(ushort statusCode)
 	return (true);
 }
 
-
-HttpResponse::HttpResponse(void) : _statusCode(200), _bodyType(HttpResponse::UNKNOWN), _body(), _bodyfd(-1) {}
-HttpResponse::~HttpResponse(void) {}
-
+// 10 - Getters
 HttpResponse::BodyType		HttpResponse::getBodyType(void) const { return _bodyType; }
 int			HttpResponse::getBodyFd(void) const { return _bodyfd; }
 const TStr&	HttpResponse::getBodyStr(void) const { return _body; };
 
+
+// 11 - Set HttpResponse fields from request
 void	HttpResponse::prepareResponse(const HttpRequest* httpRequest, const LocationConfig* locationConfig)
 {
 	_httpRequest = httpRequest;
@@ -452,6 +458,13 @@ void	HttpResponse::prepareResponse(const HttpRequest* httpRequest, const Locatio
 	// Add default headers used for any Http Response
 	setDefaultHeaders();
 
+	if (_httpRequest->getStatus() == HttpRequest::INVALID)
+	{
+		_statusCode = _httpRequest->getStatusCode();
+		handleErrorRequest(_statusCode);
+		return ;
+	}
+
 	// Check HTTP method is allowed in this config
 	if (!isRequestHttpMethodAllowed())
 	{
@@ -461,7 +474,7 @@ void	HttpResponse::prepareResponse(const HttpRequest* httpRequest, const Locatio
 	}
 
 	// Build resolved filepath
-	TStr	resolvedPath(_locationConfig->getFullPath() + _httpRequest->getUri().substr(_locationConfig->getLocationPath().getPath().size()));
+	TStr	resolvedPath(_locationConfig->getFullPath() + _httpRequest->getUriPath().substr(_locationConfig->getLocationPath().getPath().size()));
 	if (!isResolvedPathAllowed(resolvedPath))
 	{
 		_statusCode = 406;
@@ -478,6 +491,15 @@ void	HttpResponse::prepareResponse(const HttpRequest* httpRequest, const Locatio
 	}
 }
 
+void	HttpResponse::prepareErrorResponse(unsigned short code)
+{
+	_body = createDefaultStatusPage(code);
+	_bodyType = HttpResponse::STRING;
+	_headers["Content-Length"] = convToStr(_body.size());
+	_headers["Content-Type"] = "text/html";
+}
+
+// 12 - Convert HttpResponse fields to a string to send
 TStr HttpResponse::toString() const
 {
     std::ostringstream response;
@@ -494,61 +516,10 @@ TStr HttpResponse::toString() const
     return response.str();
 }
 
+
+// 13 - Debug printing
 void HttpResponse::print() const 
 {
     std::cout << toString() << std::endl;
 }
 
-
-
-
-
-void HttpResponse::setErrorResponse(int code, const std::string& root, const std::string& errorPath) {
-    setStatus(code);
-    std::string fullPath = root + errorPath;
-    if (!setBodyFromFile(fullPath)) {
-        std::ostringstream ss;
-        ss << "<h1>" << code << " " << getStatusCodeReason(code) << "</h1>";
-        setBody(ss.str(), "text/html");
-    }
-}
-
-void	HttpResponse::setStatus(int code) {
-    _statusCode = code;
-}
-
-void	HttpResponse::addHeader(const TStr& key, const TStr& value) {
-    _headers[key] = value;
-}
-
-void HttpResponse::setBody(const TStr& content, const TStr& contentType) {
-    _body = content;
-    std::ostringstream ss;
-    ss << _body.size();
-    _headers["Content-Length"] = ss.str();
-    _headers["Content-Type"] = contentType;
-}
-
-bool HttpResponse::setBodyFromFile(const TStr& filePath)
-{
-    std::ifstream file(filePath.c_str(), std::ios::binary);
-    if (!file.is_open()) {
-        return false;
-    }
-
-    std::ostringstream ss;
-    ss << file.rdbuf();
-    file.close();
-
-    TStr ext = filePath.substr(filePath.find_last_of(".") + 1);
-    TStr contentType = "application/octet-stream";
-    if (ext == "html" || ext == "htm") contentType = "text/html";
-    else if (ext == "txt") contentType = "text/plain";
-    else if (ext == "jpg" || ext == "jpeg") contentType = "image/jpeg";
-    else if (ext == "png") contentType = "image/png";
-    else if (ext == "css") contentType = "text/css";
-    else if (ext == "js") contentType = "application/javascript";
-
-    setBody(ss.str(), contentType);
-    return true;
-}

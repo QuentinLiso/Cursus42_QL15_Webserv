@@ -27,27 +27,37 @@ void		MakeConfig(const TStr& filename, Builder& builder)
 
 int main(int ac, char **av)
 {
-	// if (ac != 2)
-	// {
-	// 	Console::log(Console::ERROR, "Wrong number of arguments");
-	// 	return (1);
-	// }
-	// try
-	// {
-	// 	Builder builder;
-	// 	MakeConfig(av[1], builder);
-	// 	Server	server;
-	// 	server.makeServerReady(builder);
-	// 	server.run();
-	// }
-	// catch(const std::exception& e)
-	// {
-	// 	std::cerr << e.what() << '\n';
-	// }
+	if (ac != 2)
+	{
+		Console::log(Console::ERROR, "Wrong number of arguments");
+		return (1);
+	}
+	try
+	{
+		Builder builder;
+		MakeConfig(av[1], builder);
+		Server	server;
+		server.makeServerReady(builder);
+		server.run();
+	}
+	catch(const std::exception& e)
+	{
+		std::cerr << e.what() << '\n';
+	}
 
-	HttpRequest	request;
-	request.setBuffer("Salut\r\nLes\r\nAmis");
-	std::cout << request.getBuffer() << std::endl;
+	// HttpRequest	request;
+	// TStr		clientRequest = "GET /docs/in%21%20dex.html HTTP/1.1\r\n"
+	// 							"host: 127.0.0.1:80\r\n"
+	// 							"user-agent: lolilou\r\n"
+	// 							"trucmachin:sssss\r\n"
+	// 							"Content-Type: multipart/form-data; boundary=iii\r\n"
+	// 							"\r\n"
+	// 							;
+
+	// request.setBuffer(clientRequest);
+	// std::cout << request.getBuffer() << std::endl;
+
+	// request.parseRequestAndHeaders();
 
 	return (0);
 }
