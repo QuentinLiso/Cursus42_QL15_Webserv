@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:18 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/12 19:08:19 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/13 01:02:22 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,9 +17,11 @@
 HttpRequest::HttpRequest(void) : 
 	_status(HttpRequest::PARSING_REQUEST_LINE),
 	_index(0),
+	_headersEndIndex(0),
 	_httpStatusCode(0),
 	_headersSize(0),
 	_headersCount(0),
+	_maxBodySize(0),
 	_method(HttpMethods::UNKNOWN),
 	_hostPort(0),
 	_contentLength(0),
@@ -88,6 +90,7 @@ bool	HttpRequest::parseMethod(const TStr& subRequestLine)
 		httpMethods["POST"] = HttpMethods::POST;
 		httpMethods["DELTE"] = HttpMethods::DELETE;
 		httpMethods["PUT"] = HttpMethods::PUT;
+		httpMethods["HEAD"] = HttpMethods::HEAD;
 	}
 
 	std::map<TStr, HttpMethods::Type>::const_iterator	it = httpMethods.find(subRequestLine);
@@ -1056,25 +1059,27 @@ bool	HttpRequest::tryParseHttpRequest(void)
 {
 	if (_status == PARSING_REQUEST_LINE)
 	{
-		_headersEndIndex = _buffer.find("\r\n\r\n", _headersEndIndex);
+		_headersEndIndex = _buffer.find("\r\n\r\n");		
 		if (_headersEndIndex == TStr::npos)
 		{
+			
 			if (_buffer.size() > HttpRequest::_maxSizeRequestAndHeaders)
 			{
 				error(413, "Headers too long"); // \r\n not found but max capacity reached
 				return (true);
 			}
-			_headersEndIndex = _buffer.size();
+			_headersEndIndex = _buffer.size() < 3 ? 0 : _buffer.size() ;
 			return (false);
 		}
+		std::cout << "***************REQUEST*****************\n" << _buffer << std::endl;
 		if (!parseRequestLine() || !parseHeaders())
 			return (true);
-		_status == PARSING_BODY;
+		_status = PARSING_BODY;
 	}
 
 	if (_status == PARSING_BODY)
 	{
-		// blabla
+		return (true);
 	}
 	return (false);
 }

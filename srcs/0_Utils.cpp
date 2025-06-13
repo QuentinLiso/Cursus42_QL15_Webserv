@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:29:17 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/11 19:55:53 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/13 00:52:22 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -329,6 +329,7 @@ void HttpMethodsMap::fillBiMap(BiMap<HttpMethods::Type>& bimap)
 	bimap.add("POST", HttpMethods::POST);
 	bimap.add("DELETE", HttpMethods::DELETE);
 	bimap.add("PUT", HttpMethods::PUT);
+	bimap.add("HEAD", HttpMethods::HEAD);
 }
 
 const BiMap<HttpMethods::Type>&	HttpMethodsMap::map(void)

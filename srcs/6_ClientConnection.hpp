@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:03 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/12 19:10:15 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/12 23:44:38 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,6 +30,7 @@ class ClientConnection
 			CONNECTION_LOST,
 			RECV_ERROR,
 			REQUEST_TOO_LONG,
+			READ_AGAIN_LATER,
 			READ_OK
 		};
 

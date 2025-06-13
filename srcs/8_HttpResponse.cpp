@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/04 09:23:08 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/12 19:11:00 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/12 23:01:33 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -453,7 +453,7 @@ void	HttpResponse::prepareResponse(const HttpRequest* httpRequest, const Locatio
 	_httpRequest = httpRequest;
 	_locationConfig = locationConfig;
 
-	_locationConfig->print(std::cout, 0);
+	// _locationConfig->print(std::cout, 0);
 	
 	// Add default headers used for any Http Response
 	setDefaultHeaders();

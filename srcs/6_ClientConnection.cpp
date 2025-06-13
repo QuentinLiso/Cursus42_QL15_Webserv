@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:09 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/12 19:11:47 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/13 01:05:24 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,12 +29,14 @@ void	ClientConnection::handleCompleteRequest(void)
 {
 	const LocationConfig* loc = _relatedListeningSocket->findLocationConfig(_httpRequest.getHostAddress(), _httpRequest.getUriPath());
 	
-	// _httpRequest.printRequest(std::cout);
 	_httpResponse.prepareResponse(&_httpRequest, loc);
-
-	// _httpResponse.print();
+	_httpResponse.print();
+	
 	TStr	responseHeaders = _httpResponse.toString();
 	send(_fd, responseHeaders.c_str(), responseHeaders.size(), 0);
+
+	if (_httpRequest.getMethod() == HttpMethods::HEAD)
+		return ;
 
 	switch (_httpResponse.getBodyType())
 	{
@@ -52,6 +54,8 @@ void	ClientConnection::handleCompleteRequest(void)
 void	ClientConnection::handleErrorRequest(unsigned short code)
 {
 	_httpResponse.prepareErrorResponse(code);
+	_httpResponse.print();
+
 	TStr	responseHeaders = _httpResponse.toString();
 
 	send(_fd, responseHeaders.c_str(), responseHeaders.size(), 0);
@@ -121,7 +125,7 @@ int	ClientConnection::getFd(void) const { return _fd; }
 
 int		ClientConnection::readFromFd(void)
 {
-	char	recvBuffer[1024];
+	char	recvBuffer[8192];
 	ssize_t	bytesRead = 0;
 	size_t	totalBytesRead;
 
@@ -134,8 +138,8 @@ int		ClientConnection::readFromFd(void)
 			_httpRequest.appendToBuffer(recvBuffer, static_cast<size_t>(bytesRead));
 			if (_httpRequest.tryParseHttpRequest())
 				break ;
-			if (static_cast<size_t>(bytesRead) < sizeof(recvBuffer))
-				break ;
+			if (_httpRequest.getStatus() == HttpRequest::INVALID)
+				break ;		
 		}
 		else if (bytesRead == 0)
 		{
@@ -144,9 +148,13 @@ int		ClientConnection::readFromFd(void)
 		}
 		else
 		{
-			Console::log(Console::ERROR, "Reading from fd failed");
-			handleErrorRequest(500);
-			return (RECV_ERROR);
+			if (_httpRequest.getBuffer().empty())
+			{
+				Console::log(Console::ERROR, "Reading from fd failed");
+				handleErrorRequest(500);
+				return (RECV_ERROR);
+			}
+			return (READ_AGAIN_LATER);
 		}
 	}
 

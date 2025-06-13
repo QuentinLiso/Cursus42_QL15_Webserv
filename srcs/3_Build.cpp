@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/22 08:56:11 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/05 22:30:00 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/13 01:00:24 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -406,6 +406,11 @@ int	AllowedMethods::addAllowedMethods(const TStrVect& args)
 			warning("Duplicate HTTP method '" + arg + "' found in allowed_methods directive");
 			continue ;
 		}
+		if (method == HttpMethods::GET && _allowedMethods.insert(HttpMethods::HEAD).second == false)
+		{
+			warning("HTTP method 'HEAD' automatically added if GET allowed found in allowed_methods directive");
+			continue ;
+		}
 		_allowedMethodsStr.insert(arg);
 	}
 	return (0);
@@ -438,8 +443,10 @@ void	AllowedMethods::setDefaultMethods(void)
 {
 	_allowedMethods.insert(HttpMethods::GET);
 	_allowedMethods.insert(HttpMethods::POST);
+	_allowedMethods.insert(HttpMethods::HEAD);
 	_allowedMethodsStr.insert("GET");
 	_allowedMethodsStr.insert("POST");
+	_allowedMethodsStr.insert("HEAD");
 	_set = true;
 }
 

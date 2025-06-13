@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/01 12:02:45 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/04 21:49:59 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/13 00:05:10 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -115,8 +115,10 @@ int     Server::acceptConnection(ListeningSocket* listeningSocket)
 
 int		Server::getClientRequest(int fd)
 {
-	_clientsfds[fd]->readFromFd();
-	closeConnection(fd);
+	// _clientsfds[fd]->readFromFd();
+	int		readingResult = _clientsfds[fd]->readFromFd();
+	if (readingResult == ClientConnection::CONNECTION_LOST || readingResult == ClientConnection::READ_OK)
+		closeConnection(fd);
 	return (0);
 }
 
