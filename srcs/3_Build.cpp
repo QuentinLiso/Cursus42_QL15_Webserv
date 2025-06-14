@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/22 08:56:11 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/13 01:00:24 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/14 16:15:22 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -278,8 +278,7 @@ int	LocationPath::setPath(const TStr& arg)
 	if (containsDoubleDotsAccess(_path))
 		errorFound = error("Location path cannot have '..' as path access inside the provided argument");
 
-	if (!_path.empty() && _path[_path.size() - 1] != '/')
-		_path += '/';
+	// if (!_path.empty() && _path[_path.size() - 1] != '/');
 	removeStrDuplicateChar(_path, '/');
 	removeDotPaths(_path);
 	return (errorFound);
@@ -404,11 +403,6 @@ int	AllowedMethods::addAllowedMethods(const TStrVect& args)
 		if (_allowedMethods.insert(method).second == false)
 		{
 			warning("Duplicate HTTP method '" + arg + "' found in allowed_methods directive");
-			continue ;
-		}
-		if (method == HttpMethods::GET && _allowedMethods.insert(HttpMethods::HEAD).second == false)
-		{
-			warning("HTTP method 'HEAD' automatically added if GET allowed found in allowed_methods directive");
 			continue ;
 		}
 		_allowedMethodsStr.insert(arg);
@@ -1096,15 +1090,15 @@ int	LocationConfig::inheritFromServerConfig(const ServerConfig* serverConfig)
 
 int LocationConfig::setFullPath(void)
 {
-	if (_locationPath.getPath().empty())
-		return (error("Location full path cannot be set if location path argument is missing"));
+	// if (_locationPath.getPath().empty())
+	// 	return (error("Location full path cannot be set if location path argument is missing"));
 	
-	_fullPath = (_alias.isSet() ? _alias.getFolderPath() : joinPaths(_root.getFolderPath(), _locationPath.getPath())); 
+	// _fullPath = (_alias.isSet() ? _alias.getFolderPath() : joinPaths(_root.getFolderPath(), _locationPath.getPath())); 
 	
 	// if (_fullPath.empty() || !isExecutableDirectory(_fullPath))
 	// 	return(error("Location full path '" + _fullPath + "' is not an executable directory"));
-	if (_fullPath.empty())
-		return (error("Location full path is empty"));
+	// if (_fullPath.empty())
+	// 	return (error("Location full path is empty"));
 	return (0);
 }
 
@@ -1112,25 +1106,19 @@ int	LocationConfig::validLocationConfig(void)
 {
 	int	errorFound = 0;
 
+	if (_locationPath.getPath().empty())
+		return (error("Location full path cannot be set if location path argument is missing"));
 	if (!_alias.isSet() && !_root.isSet())
 		errorFound = error("Empty root at server level is not covered by root or alias or cgi_pass at location level");
 	if ((_alias.isSet() && _root.isSet()))
 		errorFound = error("Location block cannot have both a root and an alias directive");
-	if (setFullPath())
-		errorFound = 1;
-
 	if (!_allowedMethods.isSet())
 		_allowedMethods.setDefaultMethods();
-
 	if (_cgiPass.isSet() != _cgiExtensions.isSet())
 		errorFound = error("Location must have either both cgi_pass and cgi_extensions directives or none");
 	if (_cgiPass.isSet() && _cgiExtensions.isSet() && !CgiInterpreterMap::areValidPairs(_cgiPass.getExecPath(), _cgiExtensions.getExtensions()))
 		errorFound = error("Invalid pairs of cgi bin and allowed cgi extensions");
 
-	if (_index.isSet() && _index.setFullFileNames(_fullPath))
-		errorFound = 1;
-	if (_errorPage.isSet() && _errorPage.setFullPath(_fullPath))
-		errorFound = 1;
 	return (errorFound);
 }
 

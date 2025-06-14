@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:18 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/13 01:02:22 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/14 16:32:32 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,7 +15,7 @@
 // Contructor & destructor
 
 HttpRequest::HttpRequest(void) : 
-	_status(HttpRequest::PARSING_REQUEST_LINE),
+	_status(HttpRequest::PARSING_HEADERS),
 	_index(0),
 	_headersEndIndex(0),
 	_httpStatusCode(0),
@@ -88,7 +88,7 @@ bool	HttpRequest::parseMethod(const TStr& subRequestLine)
 	{
 		httpMethods["GET"] = HttpMethods::GET;
 		httpMethods["POST"] = HttpMethods::POST;
-		httpMethods["DELTE"] = HttpMethods::DELETE;
+		httpMethods["DELETE"] = HttpMethods::DELETE;
 		httpMethods["PUT"] = HttpMethods::PUT;
 		httpMethods["HEAD"] = HttpMethods::HEAD;
 	}
@@ -987,8 +987,12 @@ bool	HttpRequest::setTransferEncoding(const TStr& headerValue)
 	return (error(501, "Transfer encoding type not implemented"));	
 }
 
+
+// Parsing body
+
 bool	HttpRequest::parseBody(void)
 {
+	
 	return (false);
 }
 
@@ -1003,8 +1007,6 @@ bool	HttpRequest::error(unsigned short httpStatusCode, const TStr& step)
 	_httpStatusCode = httpStatusCode;
 	return (false);
 }
-
-
 
 void	HttpRequest::reset(void)
 {
@@ -1055,73 +1057,47 @@ void	HttpRequest::appendToBuffer(char recvBuffer[], size_t bytes)
 	_buffer.append(recvBuffer, bytes);
 }
 
-bool	HttpRequest::tryParseHttpRequest(void)
+HttpRequest::Status	HttpRequest::tryParseHttpRequest(void)
 {
-	if (_status == PARSING_REQUEST_LINE)
+	switch (_status)
 	{
-		_headersEndIndex = _buffer.find("\r\n\r\n");		
-		if (_headersEndIndex == TStr::npos)
-		{
-			
-			if (_buffer.size() > HttpRequest::_maxSizeRequestAndHeaders)
+		case PARSING_HEADERS:
+			_headersEndIndex = _buffer.find("\r\n\r\n");		
+			if (_headersEndIndex == TStr::npos)
 			{
-				error(413, "Headers too long"); // \r\n not found but max capacity reached
-				return (true);
+				
+				if (_buffer.size() > HttpRequest::_maxSizeRequestAndHeaders)
+				{
+					error(413, "Headers too long"); // \r\n not found but max capacity reached
+					return (INVALID);
+				}
+				_headersEndIndex = _buffer.size() < 3 ? 0 : _buffer.size() ;
+				return (PARSING_HEADERS);
 			}
-			_headersEndIndex = _buffer.size() < 3 ? 0 : _buffer.size() ;
-			return (false);
-		}
-		std::cout << "***************REQUEST*****************\n" << _buffer << std::endl;
-		if (!parseRequestLine() || !parseHeaders())
-			return (true);
-		_status = PARSING_BODY;
-	}
+	
+			if (!parseRequestLine() || !parseHeaders())
+				return (INVALID);
+			_status = PARSING_BODY;
+			_index = _headersEndIndex + 4;
+			return (PARSING_HEADERS_DONE);
+	
+		case PARSING_BODY:
+			if (_index > _buffer.size() - 1)
+				return (PARSING_BODY);
 
-	if (_status == PARSING_BODY)
-	{
-		return (true);
+			// IMPLEMENT BODY PARSING LOGIC HERE
+	
+			_status = PARSING_BODY_DONE; 
+			return (PARSING_BODY_DONE); // or PARSING BODY or INVALID
+		
+		
+		case PARSING_BODY_DONE:		return (PARSING_BODY_DONE);
+		case INVALID:				return (INVALID);
+		default		:				return (PARSING_BODY_DONE);
 	}
-	return (false);
 }
 
 // For testing
-bool	HttpRequest::setValidRequestForTesting(void)
-{
-	// // HttpRequest Logic
-	// _status = HttpRequest::COMPLETE;
-	// _buffer =
-    //     "GET /docs HTTP/1.1\r\n"
-    //     "Host: localhost\r\n"
-    //     "User-Agent: Mozilla/5.0 (compatible; TestBot/1.0)\r\n"
-    //     "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"
-    //     "Connection: keep-alive\r\n"
-    //     "Cookie: sessionid=abc123; csrftoken=xyz456\r\n"
-    //     "Referer: http://localhost/\r\n"
-    //     "Origin: http://localhost\r\n"
-    //     "\r\n";
-
-	// // Request line
-	// _method = HttpMethods::GET;
-	// _uriPath = "/docs/";
-	// _version = "HTTP/1.1";
-
-	// // Headers - mandatory
-	// _hostAddress = "localhost";
-	// _contentLength = 0;
-
-	// // Headers - very common
-	// _userAgent = "Mozilla/5.0 (compatible; TestBot/1.0)";
-    // _connection = CONN_KEEP_ALIVE;
-    // _contentType = MEDIA_MULTIPART_FORM_DATA;  // no body
-    // _cookie = "sessionid=abc123; csrftoken=xyz456";
-    // _referer = "http://localhost/";
-
-	// // Body
-	// _body.clear();
-	
-	return (true);
-}
-
 void	HttpRequest::setBuffer(const TStr& buffer) { _buffer = buffer; }
 void	HttpRequest::parseRequestAndHeaders(void)
 {

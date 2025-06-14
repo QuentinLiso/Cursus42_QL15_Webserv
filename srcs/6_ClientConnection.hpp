@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:03 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/12 23:44:38 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/14 15:20:31 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,13 +25,20 @@ class ClientConnection
 {
 	public:
 		// 0 - Enums
-		enum	Status
+		enum	ReadStatus
 		{
-			CONNECTION_LOST,
-			RECV_ERROR,
-			REQUEST_TOO_LONG,
+			READ_CONNECTION_LOST,
+			READ_RECV_ERROR,
 			READ_AGAIN_LATER,
-			READ_OK
+			READ_OK,
+		};
+
+		enum	WriteStatus
+		{
+			WRITE_CONNECTION_LOST,
+			WRITE_SEND_ERROR,
+			WRITE_AGAIN_LATER,
+			WRITE_OK
 		};
 
 		// 1 - Constructor destructor
@@ -45,9 +52,14 @@ class ClientConnection
 		HttpRequest						_httpRequest;
 		HttpResponse					_httpResponse;
 		
-		// 3 - Handling request and response after reading
-		void	handleCompleteRequest(void);
-		void	handleErrorRequest(unsigned short code);
+		// 3 - Preparing response
+		HttpResponse::Status	prepareResponseFromRequestHeadersComplete(void);
+		ReadStatus				prepareResponseFromRequestBodyComplete(void);
+		ReadStatus				prepareResponseInvalidRequest(unsigned short code, ReadStatus readStatus);
+		
+		// 4 - Sending response
+		void	sendResponseHeader(void);
+		void	sendResponseBody(void);
 		void	sendResponseBodyFd(int bodyfd);
 		void	sendResponseBodyStr(const TStr& bodystr);
 
@@ -55,8 +67,9 @@ class ClientConnection
 		// 4 - Getter
 		int     getFd(void) const;
 
-		// 5 - Reading function called from server loop epoll
-		int		readFromFd(void);
+		// 5 - Read from and send to client
+		ReadStatus	readFromFd(void);
+		WriteStatus	sendToFd(void);
 
 		
 };

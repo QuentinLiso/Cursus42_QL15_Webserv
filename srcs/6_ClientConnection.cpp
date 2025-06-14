@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:09 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/13 01:05:24 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/14 16:12:26 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,42 +24,47 @@ ClientConnection::ClientConnection(int fd, const ListeningSocket* relatedListeni
 ClientConnection::~ClientConnection(void) {}
 
 
-// 3 - Handling request and response after reading
-void	ClientConnection::handleCompleteRequest(void)
+// 3 - Preparing response
+HttpResponse::Status			ClientConnection::prepareResponseFromRequestHeadersComplete(void)
 {
 	const LocationConfig* loc = _relatedListeningSocket->findLocationConfig(_httpRequest.getHostAddress(), _httpRequest.getUriPath());
+	std::cout << "CURRENT BUFFER :\n" << _httpRequest.getBuffer() << std::endl;
+	HttpResponse::Status	ret = _httpResponse.prepareResponseFromRequestHeadersComplete(&_httpRequest, loc);
 	
-	_httpResponse.prepareResponse(&_httpRequest, loc);
 	_httpResponse.print();
-	
-	TStr	responseHeaders = _httpResponse.toString();
-	send(_fd, responseHeaders.c_str(), responseHeaders.size(), 0);
-
-	if (_httpRequest.getMethod() == HttpMethods::HEAD)
-		return ;
-
-	switch (_httpResponse.getBodyType())
-	{
-		case HttpResponse::FILEDESCRIPTOR:
-			sendResponseBodyFd(_httpResponse.getBodyFd());
-			break ;
-		case HttpResponse::STRING:
-			sendResponseBodyStr(_httpResponse.getBodyStr());
-			break;
-		default :
-			break;
-	}
+	return (ret);
 }
 
-void	ClientConnection::handleErrorRequest(unsigned short code)
+ClientConnection::ReadStatus	ClientConnection::prepareResponseFromRequestBodyComplete(void)
 {
-	_httpResponse.prepareErrorResponse(code);
+	return (READ_OK);
+}
+
+ClientConnection::ReadStatus	ClientConnection::prepareResponseInvalidRequest(unsigned short code, ClientConnection::ReadStatus readStatus)
+{
+	_httpResponse.prepareResponseInvalidRequest(code);
 	_httpResponse.print();
+	return (readStatus);
+}
 
+
+// 4 - Sending response
+
+void	ClientConnection::sendResponseHeader(void)
+{
 	TStr	responseHeaders = _httpResponse.toString();
-
 	send(_fd, responseHeaders.c_str(), responseHeaders.size(), 0);
-	sendResponseBodyStr(_httpResponse.getBodyStr());
+}
+
+void	ClientConnection::sendResponseBody(void)
+{
+	switch (_httpResponse.getBodyType())
+	{
+		case HttpResponse::NO_BODY:			break ;
+		case HttpResponse::FILEDESCRIPTOR:	sendResponseBodyFd(_httpResponse.getBodyFd()); break ;
+		case HttpResponse::STRING:			sendResponseBodyStr(_httpResponse.getBodyStr()); break;
+		default :							break;
+	}
 }
 
 void	ClientConnection::sendResponseBodyFd(int bodyfd)
@@ -120,10 +125,9 @@ void	ClientConnection::sendResponseBodyStr(const TStr& bodystr)
 
 int	ClientConnection::getFd(void) const { return _fd; }
 
-
 // 5 - Reading function called from server loop epoll
 
-int		ClientConnection::readFromFd(void)
+ClientConnection::ReadStatus	ClientConnection::readFromFd(void)
 {
 	char	recvBuffer[8192];
 	ssize_t	bytesRead = 0;
@@ -136,36 +140,48 @@ int		ClientConnection::readFromFd(void)
 		if (bytesRead > 0)
 		{
 			_httpRequest.appendToBuffer(recvBuffer, static_cast<size_t>(bytesRead));
-			if (_httpRequest.tryParseHttpRequest())
-				break ;
-			if (_httpRequest.getStatus() == HttpRequest::INVALID)
-				break ;		
+			switch (_httpRequest.tryParseHttpRequest())
+			{
+				case HttpRequest::PARSING_HEADERS: 		break;	// Read again now
+				case HttpRequest::PARSING_HEADERS_DONE: if (prepareResponseFromRequestHeadersComplete() == HttpResponse::READY_TO_SEND) return (READ_OK); break;
+				case HttpRequest::PARSING_BODY: 		break;	// Read again now
+				case HttpRequest::PARSING_BODY_DONE:	return (prepareResponseFromRequestBodyComplete());
+				case HttpRequest::INVALID:				return (prepareResponseInvalidRequest(_httpRequest.getStatusCode(), READ_OK));
+				default:								break;
+			}	
 		}
 		else if (bytesRead == 0)
 		{
 			Console::log(Console::WARNING, "Client disconnected before request was complete");
-			return (CONNECTION_LOST);
+			return (READ_CONNECTION_LOST);
 		}
 		else
 		{
 			if (_httpRequest.getBuffer().empty())
 			{
 				Console::log(Console::ERROR, "Reading from fd failed");
-				handleErrorRequest(500);
-				return (RECV_ERROR);
+				return (prepareResponseInvalidRequest(500, READ_RECV_ERROR));
 			}
 			return (READ_AGAIN_LATER);
 		}
 	}
-
-	if (_httpRequest.getStatus() == HttpRequest::INVALID)
-		handleErrorRequest(_httpRequest.getStatusCode());
-	else
-		handleCompleteRequest();
 	return (READ_OK);
 }
 
+ClientConnection::WriteStatus		ClientConnection::sendToFd(void)
+{
+	TStr	responseHeaders = _httpResponse.toString();
+	ssize_t bytesSent = send(_fd, responseHeaders.c_str(), responseHeaders.size(), 0);
 
+	switch (_httpResponse.getBodyType())
+	{
+		case HttpResponse::NO_BODY:			return (WRITE_OK);
+		case HttpResponse::FILEDESCRIPTOR:	sendResponseBodyFd(_httpResponse.getBodyFd()); break ;
+		case HttpResponse::STRING:			sendResponseBodyStr(_httpResponse.getBodyStr()); break;
+		default :							break;
+	}
+	return (WRITE_OK);
+}
 
 
 

@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/01 12:02:42 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/04 21:49:56 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/13 09:48:26 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -40,6 +40,8 @@ class	Server
 		
 		void	logIpClient(struct sockaddr_in* addr, int listeningSockFd, int clientfd) const;
 		int		getClientRequest(int fd);
+		int 	swtichSingleFdToEpollOut(int fd);
+		int		getClientResponse(int fd);
 		int		closeConnection(int fd);
 		
 		int	error(const TStr& msg);

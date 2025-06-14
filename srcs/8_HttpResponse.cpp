@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/04 09:23:08 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/12 23:01:33 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/14 15:45:35 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -153,6 +153,22 @@ bool	HttpResponse::isRequestHttpMethodAllowed(void)
 	return (allowed);
 }
 
+TStr	HttpResponse::buildResolvedPath(void)
+{
+	const Root&	root = _locationConfig->getRoot();
+	if (root.isSet())
+	{
+		return (root.getFolderPath() + _httpRequest->getUriPath());
+	}
+	else
+	{
+		const TStr& uri = _httpRequest->getUriPath();
+		const TStr& aliasPath = _locationConfig->getAlias().getFolderPath();
+		const TStr& locationPath = _locationConfig->getLocationPath().getPath();
+		return (aliasPath + uri.substr(locationPath.size()));
+	}
+}
+
 bool	HttpResponse::isResolvedPathAllowed(const TStr& resolvedPath)
 {
 	bool allowed = isValidFilepath(resolvedPath) && !containsDoubleDotsAccess(resolvedPath);
@@ -161,111 +177,71 @@ bool	HttpResponse::isResolvedPathAllowed(const TStr& resolvedPath)
 	return (allowed);
 }
 
-// 6 - Handling well formed requests
 
-bool	HttpResponse::handleResolvedPath(const TStr& resolvedPath)
+// GET + HEAD
+HttpResponse::Status	HttpResponse::prepareResponseToGetFromHeaders(const TStr& resolvedPath)
 {
 	int	status = stat(resolvedPath.c_str(), &_requestResolvedPathStatus);
-
+	
 	if (status != 0)
-	{
-		_statusCode = 404;
-		return (false);
-	}
-
+		return (handleErrorRequest(404));
+			
 	if (S_ISDIR(_requestResolvedPathStatus.st_mode))
 	{
 		Console::log(Console::DEBUG, "Requested path is a directory");
-		return (handleRequestedDirectory(resolvedPath));
+		return (handleGetDirectory(resolvedPath));
 	}
-	if (S_ISREG(_requestResolvedPathStatus.st_mode))
+	else if (S_ISREG(_requestResolvedPathStatus.st_mode))
 	{
 		Console::log(Console::DEBUG, "Requested path is a file");
-		return (handleRequestedFile(resolvedPath));
+		return (handleGetFile(resolvedPath));
 	}
-	return (false);
+	return (handleErrorRequest(404));
 }
 
-// 7 - Handling a request for a directory
-
-bool	HttpResponse::handleRequestedDirectory(const TStr& resolvedPath)
+HttpResponse::Status	HttpResponse::handleGetDirectory(const TStr& resolvedPath)
 {
-	// Checking index files
-	if (_locationConfig->getIndex().isSet())
-	{
-		const TStrVect& indexFiles = _locationConfig->getIndex().getFullFileNames();
-		for (size_t i = 0; i < indexFiles.size(); i++)
-		{
-			if (handleRequestedDirectoryIndexFile(indexFiles[i]))
-				return (true);
-		}
-	}
-	
 	// Handle autoindex
 	if (_locationConfig->getAutoindex().isActive())
 	{
-		return (handleRequestedDirectoryAutoindex(resolvedPath));
-	}
-		
-
-	_statusCode = 403;
-	return (false);
-}	
-
-bool	HttpResponse::handleRequestedDirectoryIndexFile(const TStr& filepath)
-{
-	TStr	fileExtension = getFileExtension(filepath);
-
-	// Handling Index file CGI
-	if (_locationConfig->getCgiExtensions().contains(fileExtension))
-	{
-		std::cout << "Handling CGI index file" << std::endl;
-		return (true);
+		return (handleGetDirectoryAutoindex(resolvedPath));
 	}
 
-	// Handling Index file static file
-	else
+	// Checking index files
+	if (_locationConfig->getIndex().isSet())
 	{
-		struct stat	filestatus;
-		if (stat(filepath.c_str(), &filestatus) != 0 || !S_ISREG(filestatus.st_mode) || access(filepath.c_str(), R_OK) != 0)
+		const TStrVect& indexFiles = _locationConfig->getIndex().getFileNames();
+		for (size_t i = 0; i < indexFiles.size(); i++)
 		{
-			Console::log(Console::DEBUG, "Index file is not a readable static file");
-			return (false);
+			if (handleGetDirectoryIndex(resolvedPath + '/' + indexFiles[i]) == 200)
+				return (READY_TO_SEND);
 		}
-		_bodyfd = open(filepath.c_str(), O_RDONLY);
-		if (_bodyfd < 0)
-			return (false);
-		
-		_bodyType = HttpResponse::FILEDESCRIPTOR;
-		_headers["Content-Length"] = convToStr(filestatus.st_size);
-		_headers["Content-Type"] = getMimeType(filepath);
-		
-		char lastModifBuf[100];
-		struct tm gmt_lastModif;
-		gmtime_r(&filestatus.st_mtim.tv_sec, &gmt_lastModif);
-		strftime(lastModifBuf, sizeof(lastModifBuf), "%a, %d %b %Y %H:%M:%S GMT", &gmt_lastModif);
-		_headers["Last-Modified"] = TStr(lastModifBuf);
-				
-		return (true);
 	}
+
+	return (handleErrorRequest(404));
 }
 
-bool	HttpResponse::handleRequestedDirectoryAutoindex(const TStr& folderpath)
+unsigned short			HttpResponse::handleGetDirectoryIndex(const TStr& resolvedPath)
 {
-	DIR*	directory = opendir(folderpath.c_str());
+	if (_locationConfig->getCgiExtensions().contains(getFileExtension(resolvedPath)))
+		return (handleGetCgiFile(resolvedPath));
+	else
+		return (handleGetStaticFile(resolvedPath));
+}
+
+HttpResponse::Status	HttpResponse::handleGetDirectoryAutoindex(const TStr& resolvedPath)
+{
+	DIR*	directory = opendir(resolvedPath.c_str());
 
 	if (directory == NULL)
-	{
-		_statusCode = 500;
-		return (false);
-	}
+		return (handleErrorRequest(500));
 
 	std::ostringstream	html;
 	html << "<!DOCTYPE html>\n"
 	<< "<html lang=\"en\">\n"
 	<< "<head>\n"
 	<< "  <meta charset=\"UTF-8\">\n"
-	<< "  <title> Index of " << folderpath << "</title>\n"
+	<< "  <title> Index of " << resolvedPath << "</title>\n"
 	<< "  <style>\n"
 	<< "    body {"
 	<< "      background-color: #f0f0f0;"
@@ -283,7 +259,7 @@ bool	HttpResponse::handleRequestedDirectoryAutoindex(const TStr& folderpath)
 	<< "  </style>\n"
 	<< "</head>\n"
 	<< "<body>\n"
-	<< "  <h1> Index of " << folderpath << "</h1><hr><pre>\n";
+	<< "  <h1> Index of " << resolvedPath << "</h1><hr><pre>\n";
 
 	struct dirent	*directoryEntry;
 	while ((directoryEntry = readdir(directory)) != NULL)
@@ -309,39 +285,35 @@ bool	HttpResponse::handleRequestedDirectoryAutoindex(const TStr& folderpath)
 	_headers["Content-Length"] = convToStr(_body.size());
 	_headers["Content-Type"] = "text/html";
 
-	return (true);
+	return (READY_TO_SEND);
 }
 
-// 8 - Handling a request for a static file
-
-bool	HttpResponse::handleRequestedFile(const TStr& resolvedPath)
+HttpResponse::Status	HttpResponse::handleGetFile(const TStr& resolvedPath)
 {
-	TStr	fileExtension = getFileExtension(resolvedPath);
-
-	if (_locationConfig->getCgiExtensions().contains(fileExtension))
-	{
-		std::cout << "Handling CGI file" << std::endl;
-		return (true);
-	}
-		
+	if (_locationConfig->getCgiExtensions().contains(getFileExtension(resolvedPath)))
+		_statusCode = handleGetCgiFile(resolvedPath);
 	else
-		return (handleRequestedStaticFile(resolvedPath));
+		_statusCode = handleGetStaticFile(resolvedPath);
+	
+	if (_statusCode != 200)
+		return (handleErrorRequest(_statusCode));
+	return (READY_TO_SEND);
 }
 
-bool	HttpResponse::handleRequestedStaticFile(const TStr& resolvedPath)
+unsigned short			HttpResponse::handleGetCgiFile(const TStr& resolvedPath)
 {
+	std::cout << "Handling GET CGI file" << std::endl;
+	return (200);
+}
+
+unsigned short			HttpResponse::handleGetStaticFile(const TStr& resolvedPath)
+{
+	if (stat(resolvedPath.c_str(), &_requestResolvedPathStatus) != 0)
+		return (404);
+
 	if (access(resolvedPath.c_str(), R_OK) != 0)
-	{
-		_statusCode = 403;
-		return (false);
-	}
-	_bodyfd = open(resolvedPath.c_str(), O_RDONLY);
-	if (_bodyfd < 0)
-	{
-		_statusCode = 500;
-		return (false);
-	}
-	_bodyType = HttpResponse::FILEDESCRIPTOR;
+		return (403);
+
 	_headers["Content-Length"] = convToStr(_requestResolvedPathStatus.st_size);
 	_headers["Content-Type"] = getMimeType(resolvedPath);
 	
@@ -350,13 +322,127 @@ bool	HttpResponse::handleRequestedStaticFile(const TStr& resolvedPath)
 	gmtime_r(&_requestResolvedPathStatus.st_mtim.tv_sec, &gmt_lastModif);
 	strftime(lastModifBuf, sizeof(lastModifBuf), "%a, %d %b %Y %H:%M:%S GMT", &gmt_lastModif);
 	_headers["Last-Modified"] = TStr(lastModifBuf);
-	return (true);
+
+	if (_httpRequest->getMethod() == HttpMethods::HEAD)
+	{
+		_bodyType = NO_BODY;
+		return (200);
+	}
+
+	_bodyfd = open(resolvedPath.c_str(), O_RDONLY);
+	if (_bodyfd < 0)
+		return (500);
+	_bodyType = HttpResponse::FILEDESCRIPTOR;
+	return (200);
 }
+
+// DELETE
+HttpResponse::Status	HttpResponse::prepareResponseToDeleteFromHeaders(const TStr& resolvedPath)
+{
+	int	status = stat(resolvedPath.c_str(), &_requestResolvedPathStatus);
+
+	if (status != 0)
+		return (handleErrorRequest(404));
+
+	TStr	parentDir = getParentDirectory(resolvedPath);
+
+	if (access(parentDir.c_str(), X_OK | W_OK) != 0)
+			return (handleErrorRequest(403));
+
+	if (S_ISDIR(_requestResolvedPathStatus.st_mode))
+	{
+		_statusCode = isDirectoryEmpty(resolvedPath);
+		if (_statusCode != 204)
+			return (handleErrorRequest(_statusCode));
+		
+		if (rmdir(resolvedPath.c_str()) != 0)
+			return (handleErrorRequest(500));
+	}
+	else if (S_ISREG(_requestResolvedPathStatus.st_mode))
+	{
+		if (unlink(resolvedPath.c_str()) != 0)
+			return (handleErrorRequest(500));
+		
+		_statusCode = 204;
+	}
+	else
+		return (handleErrorRequest(404));
+	
+	_bodyType = NO_BODY;
+	return (READY_TO_SEND);
+}
+
+TStr			HttpResponse::getParentDirectory(const TStr& resolvedPath)
+{
+	if (resolvedPath.empty() || resolvedPath.size() == 1)
+		return ("/");
+
+	bool trailingSlash = (resolvedPath[resolvedPath.size() - 1] == '/');
+	size_t	pos = trailingSlash ? 
+			resolvedPath.find_last_of('/', resolvedPath.size() - 2) :
+			resolvedPath.find_last_of('/');
+
+	return (pos == TStr::npos ? "/" : resolvedPath.substr(0, pos));
+}
+
+unsigned short	HttpResponse::isDirectoryEmpty(const TStr& resolvedPath)
+{
+	DIR*	directory = opendir(resolvedPath.c_str());
+
+	if (directory == NULL)
+		return (500);
+
+	struct dirent	*directoryEntry;
+	while ((directoryEntry = readdir(directory)) != NULL)
+	{
+		TStr	name = directoryEntry->d_name;
+		if (name != "." && name != "..")
+		{
+			closedir(directory);
+			return (409);
+		}
+	}
+	closedir(directory);
+	return (204);
+}	
+
+// POST
+HttpResponse::Status	HttpResponse::prepareResponseToPostPutFromHeaders(const TStr& resolvedPath)
+{
+	int	status = stat(resolvedPath.c_str(), &_requestResolvedPathStatus);
+	
+	TStr	parentDir = getParentDirectory(resolvedPath);
+
+	if (status != 0)	// File or folder does not exist
+	{
+		if (access(parentDir.c_str(), W_OK | X_OK) != 0)
+			return (handleErrorRequest(403));
+	}
+	else
+	{
+		if (access(resolvedPath.c_str(), W_OK) != 0)
+			return (handleErrorRequest(403));
+		if (!S_ISREG(_requestResolvedPathStatus.st_mode) && !S_ISDIR(_requestResolvedPathStatus.st_mode))
+			return (handleErrorRequest(403));
+	}
+
+	if (_httpRequest->getTransferEncoding() != HttpRequest::TE_CHUNKED && _httpRequest->getContentLength() == 0)
+		return (handleErrorRequest(411));
+
+	return (PROCESSING);
+}
+
+
+// PUT
+
+// 8 - Handling a request for a static file
 
 // 9 - Handling error requests
 
-void	HttpResponse::handleErrorRequest(ushort statusCode)
+HttpResponse::Status	HttpResponse::handleErrorRequest(ushort statusCode)
 {
+	_statusCode = statusCode;
+
 	if (!canServeCustomErrorPage(statusCode))
 	{
 		_body = createDefaultStatusPage(statusCode);
@@ -364,9 +450,10 @@ void	HttpResponse::handleErrorRequest(ushort statusCode)
 		_headers["Content-Length"] = convToStr(_body.size());
 		_headers["Content-Type"] = "text/html";
 	}
+	return (READY_TO_SEND);
 }
 
-TStr	HttpResponse::createDefaultStatusPage(ushort statusCode)
+TStr					HttpResponse::createDefaultStatusPage(ushort statusCode)
 {
     const char* reasonPhrase = HttpResponse::getStatusCodeReason(statusCode);
     std::ostringstream html;
@@ -402,7 +489,7 @@ TStr	HttpResponse::createDefaultStatusPage(ushort statusCode)
     return (html.str());
 }
 
-bool	HttpResponse::canServeCustomErrorPage(ushort statusCode)
+bool					HttpResponse::canServeCustomErrorPage(ushort statusCode)
 {
 	const std::map<ushort, TStr>& customErrorPages = _locationConfig->getErrorPage().getErrorPages();
 	std::map<ushort, TStr>::const_iterator it = customErrorPages.find(statusCode);
@@ -442,61 +529,58 @@ bool	HttpResponse::canServeCustomErrorPage(ushort statusCode)
 }
 
 // 10 - Getters
+HttpResponse::Status		HttpResponse::getStatus(void) const { return _status; }
 HttpResponse::BodyType		HttpResponse::getBodyType(void) const { return _bodyType; }
-int			HttpResponse::getBodyFd(void) const { return _bodyfd; }
-const TStr&	HttpResponse::getBodyStr(void) const { return _body; };
+int							HttpResponse::getBodyFd(void) const { return _bodyfd; }
+const TStr&					HttpResponse::getBodyStr(void) const { return _body; };
 
 
 // 11 - Set HttpResponse fields from request
-void	HttpResponse::prepareResponse(const HttpRequest* httpRequest, const LocationConfig* locationConfig)
+HttpResponse::Status	HttpResponse::prepareResponseFromRequestHeadersComplete(const HttpRequest* httpRequest, const LocationConfig* locationConfig)
 {
 	_httpRequest = httpRequest;
 	_locationConfig = locationConfig;
 
-	// _locationConfig->print(std::cout, 0);
-	
 	// Add default headers used for any Http Response
 	setDefaultHeaders();
-
-	if (_httpRequest->getStatus() == HttpRequest::INVALID)
-	{
-		_statusCode = _httpRequest->getStatusCode();
-		handleErrorRequest(_statusCode);
-		return ;
-	}
 
 	// Check HTTP method is allowed in this config
 	if (!isRequestHttpMethodAllowed())
 	{
 		_statusCode = 405;
 		handleErrorRequest(_statusCode);
-		return ;
+		return 	(READY_TO_SEND);
 	}
 
 	// Build resolved filepath
-	TStr	resolvedPath(_locationConfig->getFullPath() + _httpRequest->getUriPath().substr(_locationConfig->getLocationPath().getPath().size()));
+	TStr	resolvedPath = buildResolvedPath();
+	std::cout << "RESOLVED PATH : " << resolvedPath << std::endl;
 	if (!isResolvedPathAllowed(resolvedPath))
 	{
 		_statusCode = 406;
 		handleErrorRequest(_statusCode);
-		return ;
+		return (READY_TO_SEND);
 	}
 	normalizeFilepath(resolvedPath);
 
-	// Execute based on the resolved filepath
-	if (!handleResolvedPath(resolvedPath))
+	switch (_httpRequest->getMethod())
 	{
-		handleErrorRequest(_statusCode);
-		return ;
+		case	HttpMethods::GET:
+		case	HttpMethods::HEAD:		return (prepareResponseToGetFromHeaders(resolvedPath));
+		case	HttpMethods::DELETE:	return (prepareResponseToDeleteFromHeaders(resolvedPath));
+		case	HttpMethods::POST:		return (prepareResponseToPostPutFromHeaders(resolvedPath));
+		default	:						return (READY_TO_SEND);
 	}
+	return (READY_TO_SEND);
 }
 
-void	HttpResponse::prepareErrorResponse(unsigned short code)
+HttpResponse::Status	HttpResponse::prepareResponseInvalidRequest(unsigned short code)
 {
 	_body = createDefaultStatusPage(code);
 	_bodyType = HttpResponse::STRING;
 	_headers["Content-Length"] = convToStr(_body.size());
 	_headers["Content-Type"] = "text/html";
+	return (READY_TO_SEND);
 }
 
 // 12 - Convert HttpResponse fields to a string to send

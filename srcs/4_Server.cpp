@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/01 12:02:45 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/13 00:05:10 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/14 15:31:05 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -68,7 +68,6 @@ int Server::registerSocketsToEpoll(void)
 
 int Server::waitForConnections(int timeout)
 {
-	// int	loop = 4;
     while (true)
     {
         _eventsReady = epoll_wait(_epollfd, _eventQueue, 64, timeout);
@@ -80,12 +79,20 @@ int Server::waitForConnections(int timeout)
         for (int i = 0; i < _eventsReady; i++)
         {
             int fd = _eventQueue[i].data.fd;
+			uint32_t	events = _eventQueue[i].events;
+	
 			if (fd < 0 || fd >= MAX_FD)
 				Console::log(Console::ERROR, "Got an event inside a FD that is neither a listening socket nor a client open connection");
             else if (_socketsfds[fd] != NULL)
                 acceptConnection(_socketsfds[fd]);
             else if (_clientsfds[fd] != NULL)
-				getClientRequest(fd);
+			{
+				if (events & EPOLLIN)
+					getClientRequest(fd);
+				if (events & EPOLLOUT)
+					getClientResponse(fd);
+			}
+				
             else
                 Console::log(Console::ERROR, "Got an event inside a FD that is neither a listening socket nor a client open connection");
         }
@@ -115,10 +122,41 @@ int     Server::acceptConnection(ListeningSocket* listeningSocket)
 
 int		Server::getClientRequest(int fd)
 {
-	// _clientsfds[fd]->readFromFd();
 	int		readingResult = _clientsfds[fd]->readFromFd();
-	if (readingResult == ClientConnection::CONNECTION_LOST || readingResult == ClientConnection::READ_OK)
-		closeConnection(fd);
+	switch (readingResult)
+	{
+		case ClientConnection::READ_CONNECTION_LOST:	closeConnection(fd); break;
+		case ClientConnection::READ_OK:
+		case ClientConnection::READ_RECV_ERROR:			swtichSingleFdToEpollOut(fd); break;
+		default:										break;
+	}
+	return (0);
+}
+
+int Server::swtichSingleFdToEpollOut(int fd)
+{
+    struct epoll_event  eventRegister;
+    eventRegister.events = EPOLLOUT;
+    eventRegister.data.fd = fd;
+    if (epoll_ctl(_epollfd, EPOLL_CTL_MOD, fd, &eventRegister) == -1)
+    {
+        std::ostringstream  oss;
+        oss << "[SERVER] : Couldn't add FD " << fd << "to server epoll";
+        Console::log(Console::ERROR, oss.str());
+        return (1);
+    }
+    return (0);
+}
+
+int	Server::getClientResponse(int fd)
+{
+	int writingResult = _clientsfds[fd]->sendToFd();
+
+	switch (writingResult)
+	{
+		case ClientConnection::WRITE_OK:	closeConnection(fd);
+		default:							break;
+	}
 	return (0);
 }
 
@@ -172,8 +210,6 @@ Server::~Server(void)
 	{
 		if (_socketsfds[i] != NULL)
 			delete _socketsfds[i];
-		// if (_clientsfds[i] != NULL)
-		// 	delete _clientsfds[i];
 	}
 }
 

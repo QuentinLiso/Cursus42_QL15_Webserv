@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/05 17:20:51 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/05 19:56:18 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/13 18:47:17 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,10 +20,10 @@ class CgiInterpreterMap
 {
 	private:
 		static std::map<TStr, std::set<TStr> >	_map;
-		static std::set<TStr>			_extensions;
-		
+		static std::set<TStr>					_extensions;
+
 		static std::map<TStr, std::set<TStr> >	createMap(void);
-		static std::set<TStr>			createExtensions(void);
+		static std::set<TStr>					createExtensions(void);
 		
 	public:
 		static const std::map<TStr, std::set<TStr> >&	getMap(void);

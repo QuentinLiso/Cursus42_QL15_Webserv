@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/04 09:22:48 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/12 19:10:55 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/14 15:16:40 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,8 +23,15 @@ class	HttpResponse
 {
 	public :
 		// 0 - Enums
+		enum	Status
+		{
+			PROCESSING,
+			READY_TO_SEND
+		};
+
 		enum	BodyType
 		{
+			NO_BODY,
 			FILEDESCRIPTOR,
 			STRING,
 			UNKNOWN
@@ -46,6 +53,7 @@ class	HttpResponse
 		static const TStr&			getMimeType(const TStr& filepath);	
 
 		// 3 - Variables
+		HttpResponse::Status		_status;
 		const HttpRequest*			_httpRequest;
 		const LocationConfig*		_locationConfig;
 		struct stat					_requestResolvedPathStatus;
@@ -61,7 +69,32 @@ class	HttpResponse
 
 		// 5 - Handling bad requests
 		bool	isRequestHttpMethodAllowed(void);
+		TStr	buildResolvedPath(void);
 		bool	isResolvedPathAllowed(const TStr& resolvedPath);
+
+		//	GET + HEAD
+		HttpResponse::Status	prepareResponseToGetFromHeaders(const TStr& resolvedPath);
+		HttpResponse::Status	handleGetDirectory(const TStr& resolvedPath);
+		unsigned short			handleGetDirectoryIndex(const TStr& resolvedPath);
+		HttpResponse::Status	handleGetDirectoryAutoindex(const TStr& resolvedPath);
+		HttpResponse::Status	handleGetFile(const TStr& resolvedPath);
+		unsigned short			handleGetCgiFile(const TStr& resolvedPath);
+		unsigned short			handleGetStaticFile(const TStr& resolvedPath);
+
+		// DELETE
+		HttpResponse::Status	prepareResponseToDeleteFromHeaders(const TStr& resolvedPath);
+		TStr					getParentDirectory(const TStr& resolvedPath);
+		unsigned short			isDirectoryEmpty(const TStr& resolvedPath);
+
+		// POST
+		HttpResponse::Status	prepareResponseToPostPutFromHeaders(const TStr& resolvedPath);
+		
+		// PUT
+
+
+
+
+		bool	checkPermissionAccession(const TStr& resolvedPath);
 
 		// 6 - Handling well formed requests
 		bool	handleResolvedPath(const TStr& resolvedPath);
@@ -77,19 +110,20 @@ class	HttpResponse
 
 		// 9 - Handling error requests
 		TStr	createDefaultStatusPage(ushort statusCode);
-		void	handleErrorRequest(ushort statusCode);
+		HttpResponse::Status	handleErrorRequest(ushort statusCode);
 		bool	canServeCustomErrorPage(ushort statusCode);
 
 		
 	public:
 		// 10 - Getters
+		HttpResponse::Status	getStatus(void) const;
 		BodyType	getBodyType(void) const;
 		int			getBodyFd(void) const;
 		const TStr&	getBodyStr(void) const;
 
 		// 11 - Set HttpResponse fields from request
-		void	prepareResponse(const HttpRequest* httpRequest, const LocationConfig* locationConfig);
-		void	prepareErrorResponse(unsigned short code);
+		HttpResponse::Status	prepareResponseFromRequestHeadersComplete(const HttpRequest* httpRequest, const LocationConfig* locationConfig);
+		HttpResponse::Status	prepareResponseInvalidRequest(unsigned short code);
     	
 		// 12 - Convert HttpResponse fields to a string to send
 		TStr	toString() const;

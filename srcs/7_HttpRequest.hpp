@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:15 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/12 19:08:15 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/14 16:32:20 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,13 +17,6 @@
 # include "Console.hpp"
 # include "0_Utils.hpp"
 
-// # define MAX_REQUEST_LINE	8192
-// # define MAX_URI			4096
-// # define MAX_HEADER_LINE	8192
-// # define MAX_HEADERS_SIZE	65536
-// # define MAX_HEADERS_COUNT	100
-// # define MAX_HEADER_NAME	256
-// # define MAX_BODY_SIZE		10485760
 
 class	HttpRequest
 {
@@ -31,10 +24,10 @@ class	HttpRequest
 		// 0 - Enums
 		enum	Status
 		{
-			PARSING_REQUEST_LINE,
 			PARSING_HEADERS,
+			PARSING_HEADERS_DONE,
 			PARSING_BODY,
-			COMPLETE,
+			PARSING_BODY_DONE,
 			INVALID
 		};
 
@@ -164,6 +157,7 @@ class	HttpRequest
 
 		// Parsing Body
 		bool	parseBody(void);		// TO IMPLEMENT
+		bool	parseContentLengthBody(void);
 
 		bool	error(unsigned short httpStatusCode, const TStr& step);
 
@@ -193,11 +187,10 @@ class	HttpRequest
 		TransferEncodingType	getTransferEncoding(void) const;
 
 		// Parsing buffer into an http request
-		void	appendToBuffer(char	recvBuffer[], size_t bytes);
-		bool	tryParseHttpRequest(void);			// TO IMPLEMENT
+		void				appendToBuffer(char	recvBuffer[], size_t bytes);
+		HttpRequest::Status	tryParseHttpRequest(void);
 		
 		// For testing
-		bool	setValidRequestForTesting(void);
 		void	setBuffer(const TStr& buffer);
 		void	parseRequestAndHeaders(void);
 
