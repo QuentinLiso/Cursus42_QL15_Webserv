@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:29:17 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/11 19:56:15 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/15 08:47:41 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -47,9 +47,28 @@ bool	isExistingFile(const std::string& filePath);
 bool	isExistingAndAccessibleFile(const std::string& filePath, int accessArgs);
 std::string	getFileExtension(const std::string& filepath);
 
-# include "0_Utils.tpp"
 
 // HTTP METHODS MAP
+
+namespace HttpMethods
+{
+	enum Type
+	{
+		UNKNOWN,
+		GET,
+		POST,
+		DELETE,
+		PUT,
+		HEAD
+	};
+
+	TStr	toString(HttpMethods::Type	method);
+};
+
+
+# include "0_Utils.tpp"
+
+
 class	HttpMethodsMap
 {
 	private:

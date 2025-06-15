@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/04 09:23:08 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/14 15:45:35 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/15 17:31:26 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -181,9 +181,9 @@ bool	HttpResponse::isResolvedPathAllowed(const TStr& resolvedPath)
 // GET + HEAD
 HttpResponse::Status	HttpResponse::prepareResponseToGetFromHeaders(const TStr& resolvedPath)
 {
-	int	status = stat(resolvedPath.c_str(), &_requestResolvedPathStatus);
+	_requestResolvedPathStatResult = stat(resolvedPath.c_str(), &_requestResolvedPathStatus);
 	
-	if (status != 0)
+	if (_requestResolvedPathStatResult != 0)
 		return (handleErrorRequest(404));
 			
 	if (S_ISDIR(_requestResolvedPathStatus.st_mode))
@@ -302,8 +302,66 @@ HttpResponse::Status	HttpResponse::handleGetFile(const TStr& resolvedPath)
 
 unsigned short			HttpResponse::handleGetCgiFile(const TStr& resolvedPath)
 {
-	std::cout << "Handling GET CGI file" << std::endl;
-	return (200);
+	Console::log(Console::DEBUG, "Handling CGI GET request");
+	int	outputPipe[2];
+
+	if (pipe(outputPipe) == -1)
+		return (500);
+	
+	pid_t	pid = fork();
+	if (pid < 0)
+	{
+		close(outputPipe[0]); close(outputPipe[1]);
+		return (500);
+	}
+	else if (pid == 0)
+	{
+		close(outputPipe[0]);
+		if (dup2(outputPipe[1], STDOUT_FILENO) == -1)
+		{
+			close(outputPipe[1]);
+			exit (1);
+		}
+		close(outputPipe[1]);
+		TStrVect			tmpEnvp;
+		std::vector<char*>	argv, envp;
+		buildExecveArgs(resolvedPath, tmpEnvp, argv, envp);
+		for (size_t i = 0; i < envp.size(); i++)
+		{
+			std::cout << envp[i] << std::endl;
+		}
+		if (chdir(getParentDirectory(resolvedPath).c_str()) == -1)
+			exit (1);
+		execve(argv[0], argv.data(), envp.data());
+		Console::log(Console::ERROR, strerror(errno));
+		exit(1);
+		return (500);
+	}
+	else
+	{
+		close(outputPipe[1]);
+
+		char	buffer[4096];
+		ssize_t	bytesRead;
+		TStr	cgiOutput;
+		while ((bytesRead = read(outputPipe[0], buffer, sizeof(buffer))) > 0)
+			cgiOutput.append(buffer, bytesRead);
+
+		close(outputPipe[0]);
+		int status;
+		waitpid(pid, &status, 0);
+		if (!WIFEXITED(status))
+		{
+			Console::log(Console::ERROR, "CGI process terminated abnormally");
+			return (500);
+		}
+		else if (WEXITSTATUS(status) != 0)
+		{
+			Console::log(Console::ERROR, "CGI exited with non-zero status");
+			return (500);
+		}
+		return (prepareResponseFromCgi(resolvedPath, cgiOutput));
+	}
 }
 
 unsigned short			HttpResponse::handleGetStaticFile(const TStr& resolvedPath)
@@ -406,23 +464,23 @@ unsigned short	HttpResponse::isDirectoryEmpty(const TStr& resolvedPath)
 	return (204);
 }	
 
-// POST
-HttpResponse::Status	HttpResponse::prepareResponseToPostPutFromHeaders(const TStr& resolvedPath)
+// PUT
+HttpResponse::Status	HttpResponse::prepareResponseToPutFromHeaders(const TStr& resolvedPath)
 {
-	int	status = stat(resolvedPath.c_str(), &_requestResolvedPathStatus);
+	_requestResolvedPathStatResult = stat(resolvedPath.c_str(), &_requestResolvedPathStatus);
 	
 	TStr	parentDir = getParentDirectory(resolvedPath);
 
-	if (status != 0)	// File or folder does not exist
+	if (_requestResolvedPathStatResult != 0)	// File or folder does not exist
 	{
 		if (access(parentDir.c_str(), W_OK | X_OK) != 0)
 			return (handleErrorRequest(403));
 	}
 	else
 	{
-		if (access(resolvedPath.c_str(), W_OK) != 0)
-			return (handleErrorRequest(403));
-		if (!S_ISREG(_requestResolvedPathStatus.st_mode) && !S_ISDIR(_requestResolvedPathStatus.st_mode))
+		if (S_ISDIR(_requestResolvedPathStatus.st_mode)) // Existing URI folder
+			return (handleErrorRequest(405));
+		else if (!S_ISREG(_requestResolvedPathStatus.st_mode) || access(resolvedPath.c_str(), W_OK) != 0)	// Existing file not accessible or not a file
 			return (handleErrorRequest(403));
 	}
 
@@ -432,12 +490,213 @@ HttpResponse::Status	HttpResponse::prepareResponseToPostPutFromHeaders(const TSt
 	return (PROCESSING);
 }
 
+// POST
+HttpResponse::Status	HttpResponse::prepareResponseToPostFromHeaders(const TStr& resolvedPath)
+{
+	_requestResolvedPathStatResult = stat(resolvedPath.c_str(), &_requestResolvedPathStatus);
+	
+	TStr	parentDir = getParentDirectory(resolvedPath);
+	bool	isCgiUri = _locationConfig->getCgiExtensions().contains(getFileExtension(resolvedPath));
 
-// PUT
+	if (_requestResolvedPathStatResult != 0)	// Non-existing URI
+	{
+		if (!isCgiUri)							// Non-existing non-cgi URI
+			return (handleErrorRequest(404));
+			
+		if (access(parentDir.c_str(), W_OK | X_OK) != 0)	// Parent folder not writeable executable
+			return (handleErrorRequest(403));
+		
+	}
+	else	// Existing URI
+	{
+		if (S_ISDIR(_requestResolvedPathStatus.st_mode)) // Existing URI folder
+			return (handleErrorRequest(405));
+		else if (S_ISREG(_requestResolvedPathStatus.st_mode))	// Existing URI file
+		{
+			if (!isCgiUri)		// Existing non-cgi URI 
+				return (handleErrorRequest(405));
 
-// 8 - Handling a request for a static file
+			if (access(resolvedPath.c_str(), W_OK) != 0) // File not writeable
+				return (handleErrorRequest(403));
+		} 
+		else
+			return (handleErrorRequest(403));
+	}
 
-// 9 - Handling error requests
+	if (_httpRequest->getTransferEncoding() != HttpRequest::TE_CHUNKED && _httpRequest->getContentLength() == 0)
+		return (handleErrorRequest(411));
+
+	return (PROCESSING);
+}
+
+HttpResponse::Status	HttpResponse::prepareResponseToPostFromBody(const TStr& resolvedPath)
+{
+	// Request is necessarily a CGI
+	Console::log(Console::DEBUG, "Handling CGI POST request");
+	int	inputPipe[2];
+	int	outputPipe[2];
+
+	// Pipe and fork setup + check
+	if (pipe(inputPipe) == -1)
+		return (handleErrorRequest(500));
+	if (pipe(outputPipe) == -1)
+	{
+		close(inputPipe[0]); close(inputPipe[1]);
+		return (handleErrorRequest(500));
+	}
+	pid_t	pid = fork();
+	if (pid < 0)
+	{
+		close(inputPipe[0]); close(inputPipe[1]); close(outputPipe[0]); close(outputPipe[1]);
+		return (handleErrorRequest(500));
+	}
+	
+	// Child process
+	else if (pid == 0)
+	{
+		// Pipe and Dup setup -> Child process reads from inputPipe (waiting phase) and writes script execve output to outputPipe
+		close(inputPipe[1]); close(outputPipe[0]);	// Closing writing-end of input, closing reading-end of output (not used)
+		if (dup2(inputPipe[0], STDIN_FILENO) == -1 || dup2(outputPipe[1], STDOUT_FILENO) == -1)
+		{
+			close(inputPipe[0]); close(outputPipe[1]);
+			exit (1);
+		}
+		close(inputPipe[0]); close(outputPipe[1]);	// Closing reading-end of input, closing writing-end of output (duped with stdin/out)
+
+		// Exec
+		TStrVect			tmpEnvp;
+		std::vector<char*>	argv, envp;
+		buildExecveArgs(resolvedPath, tmpEnvp, argv, envp);
+		if (chdir(getParentDirectory(resolvedPath).c_str()) == -1)
+			exit (1);
+		execve(argv[0], argv.data(), envp.data());
+		Console::log(Console::ERROR, strerror(errno));
+		exit(1);
+		return (handleErrorRequest(500));
+	}
+
+	// Parent process
+	else
+	{
+		close(inputPipe[0]); close(outputPipe[1]);	// Closing reading-end of input, closing writing-end of output
+		
+		// Parent writing request body to inputPipe
+		ssize_t bytesWritten = 0;
+		const char*	requestBody = _httpRequest->getBody().c_str();
+		ssize_t	bodySize = static_cast<ssize_t>(_httpRequest->getBody().size());
+		
+		while (bytesWritten < bodySize)
+		{
+			ssize_t	res = write(inputPipe[1], requestBody + bytesWritten, bodySize - bytesWritten);
+			if (res <= 0)
+			{
+				close (inputPipe[1]); close (outputPipe[0]);
+				waitpid(pid, NULL, 0);
+				return (handleErrorRequest(500));
+			}
+			bytesWritten += res;
+		}
+		close(inputPipe[1]);
+		
+		// Parent reading child script execution from outputPipe
+		Console::log(Console::DEBUG, "Handling parent CGI POST request");
+		
+		char	buffer[4096];
+		ssize_t	bytesRead;
+		TStr	cgiOutput;
+		while ((bytesRead = read(outputPipe[0], buffer, sizeof(buffer))) > 0)
+			cgiOutput.append(buffer, bytesRead);
+
+		close(outputPipe[0]);
+		int status;
+		waitpid(pid, &status, 0);
+		if (!WIFEXITED(status))
+		{
+			Console::log(Console::ERROR, "CGI process terminated abnormally");
+			return (handleErrorRequest(500));
+		}
+		else if (WEXITSTATUS(status) != 0)
+		{
+			Console::log(Console::ERROR, "CGI exited with non-zero status");
+			return (handleErrorRequest(500));
+		}
+		_statusCode = prepareResponseFromCgi(resolvedPath, cgiOutput);
+		if (_statusCode >= 400)
+			return (handleErrorRequest(_statusCode));
+	}
+	return (READY_TO_SEND);
+}
+
+
+// CGI
+void	HttpResponse::buildExecveArgs(const TStr& resolvedPath, TStrVect& tmpEnvp, std::vector<char*>& argv, std::vector<char*>& envp)
+{
+	argv.push_back(const_cast<char*>(_locationConfig->getCgiPass().getExecPath().c_str()));
+	argv.push_back(const_cast<char *>(resolvedPath.c_str()));
+	argv.push_back(NULL);
+
+	tmpEnvp.push_back("REQUEST_METHOD=" + HttpMethods::toString(_httpRequest->getMethod()));
+	tmpEnvp.push_back("SCRIPT_NAME=" + resolvedPath);
+	tmpEnvp.push_back("PATH_INFO=" + resolvedPath);
+	tmpEnvp.push_back("QUERY_STRING=" + _httpRequest->getUriQuery());
+	tmpEnvp.push_back("GATEWAY_INTERFACE=CGI/1.1");
+	tmpEnvp.push_back("SERVER_PROTOCOL=HTTP/1.1");
+	tmpEnvp.push_back("CONTENT_LENGTH=" + convToStr(_httpRequest->getBody().size()));
+
+	envp.reserve(tmpEnvp.size() + 1);
+	for (size_t i = 0; i < tmpEnvp.size(); i++)
+		envp.push_back(const_cast<char*>(tmpEnvp[i].c_str()));
+	envp.push_back(NULL);
+}
+
+unsigned short	HttpResponse::prepareResponseFromCgi(const TStr& resolvedPath, const TStr& cgiOutput)
+{
+	size_t	headersEnd = cgiOutput.find("\r\n\r\n");
+	if (headersEnd == TStr::npos)
+		return (502);
+
+	std::istringstream	iss(cgiOutput.substr(0, headersEnd));
+	TStr	line;
+
+	while (std::getline(iss, line) && !line.empty())
+	{
+		if (line[line.size() - 1] == '\r')
+			line.erase(line.size() - 1);
+		size_t	colon = line.find(':');
+		if (colon == 0 || colon == TStr::npos || colon == line.size() - 1)
+			continue ;
+		TStr	key = trimHeadAndTail(line.substr(0, colon));
+		TStr	value = trimHeadAndTail(line.substr(colon + 1));
+		_headers[key] = value;
+	}
+
+	if (_headers.find("Content-Length") == _headers.end())
+		_headers["Content-Length"] = convToStr(cgiOutput.size() - (headersEnd + 4));
+	
+	if (_headers.find("Content-Type") == _headers.end())
+		_headers["Content-Type"] = getMimeType(resolvedPath);
+
+	char lastModifBuf[100];
+	struct tm gmt_lastModif;
+	gmtime_r(&_requestResolvedPathStatus.st_mtim.tv_sec, &gmt_lastModif);
+	strftime(lastModifBuf, sizeof(lastModifBuf), "%a, %d %b %Y %H:%M:%S GMT", &gmt_lastModif);
+	_headers["Last-Modified"] = TStr(lastModifBuf);
+	
+	std::map<TStr, TStr>::iterator it = _headers.find("Status");
+	if (it != _headers.end())
+	{
+		if (strToVal<unsigned short>(it->second, _statusCode) == false)
+			_statusCode = 200;
+		_headers.erase("Status");
+	}
+	else
+		_statusCode = 200;
+	_bodyType = HttpResponse::STRING;
+	_body = cgiOutput.substr(headersEnd + 4);
+	return (_statusCode);
+}
+
+// Handling error requests
 
 HttpResponse::Status	HttpResponse::handleErrorRequest(ushort statusCode)
 {
@@ -553,34 +812,52 @@ HttpResponse::Status	HttpResponse::prepareResponseFromRequestHeadersComplete(con
 	}
 
 	// Build resolved filepath
-	TStr	resolvedPath = buildResolvedPath();
-	std::cout << "RESOLVED PATH : " << resolvedPath << std::endl;
-	if (!isResolvedPathAllowed(resolvedPath))
+	_resolvedPath = buildResolvedPath();
+	if (!isResolvedPathAllowed(_resolvedPath))
 	{
 		_statusCode = 406;
 		handleErrorRequest(_statusCode);
 		return (READY_TO_SEND);
 	}
-	normalizeFilepath(resolvedPath);
+	normalizeFilepath(_resolvedPath);
 
 	switch (_httpRequest->getMethod())
 	{
 		case	HttpMethods::GET:
-		case	HttpMethods::HEAD:		return (prepareResponseToGetFromHeaders(resolvedPath));
-		case	HttpMethods::DELETE:	return (prepareResponseToDeleteFromHeaders(resolvedPath));
-		case	HttpMethods::POST:		return (prepareResponseToPostPutFromHeaders(resolvedPath));
+		case	HttpMethods::HEAD:		return (prepareResponseToGetFromHeaders(_resolvedPath));
+		case	HttpMethods::DELETE:	return (prepareResponseToDeleteFromHeaders(_resolvedPath));
+		case	HttpMethods::POST:		return (prepareResponseToPostFromHeaders(_resolvedPath));
+		case	HttpMethods::PUT:		return (prepareResponseToPutFromHeaders(_resolvedPath));
 		default	:						return (READY_TO_SEND);
 	}
 	return (READY_TO_SEND);
 }
 
-HttpResponse::Status	HttpResponse::prepareResponseInvalidRequest(unsigned short code)
+HttpResponse::Status	HttpResponse::prepareResponseFromRequestBodyComplete(void)
+{
+	switch(_httpRequest->getMethod())
+	{
+		case	HttpMethods::POST:	return (prepareResponseToPostFromBody(_resolvedPath));
+		case	HttpMethods::PUT:	return (prepareResponseToPostFromBody(_resolvedPath));
+		default :					return (READY_TO_SEND);
+	}
+	return (READY_TO_SEND);
+}
+
+
+
+HttpResponse::Status	HttpResponse::prepareResponseInvalidHeadersRequest(unsigned short code)
 {
 	_body = createDefaultStatusPage(code);
 	_bodyType = HttpResponse::STRING;
 	_headers["Content-Length"] = convToStr(_body.size());
 	_headers["Content-Type"] = "text/html";
 	return (READY_TO_SEND);
+}
+
+HttpResponse::Status	HttpResponse::prepareResponseInvalidBodyRequest(unsigned short code)
+{
+	return (handleErrorRequest(code));
 }
 
 // 12 - Convert HttpResponse fields to a string to send

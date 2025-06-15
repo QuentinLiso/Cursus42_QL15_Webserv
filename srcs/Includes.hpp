@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:21:21 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/13 00:43:21 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/15 09:55:50 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -36,6 +36,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <sys/wait.h>
 
 class Token;
 class Lexer;
@@ -51,23 +52,6 @@ typedef std::string					TStr;
 typedef std::pair<u_int32_t, u_int16_t>	TIPPort;
 typedef	std::map<TStr, const ServerConfig*>	HostToServerMap;
 typedef std::map<TIPPort, HostToServerMap>	RuntimeBuildMap;
-
-namespace HttpMethods
-{
-	enum Type
-	{
-		UNKNOWN,
-		GET,
-		POST,
-		DELETE,
-		PUT,
-		HEAD
-	};
-
-	
-};
-
-
 
 
 

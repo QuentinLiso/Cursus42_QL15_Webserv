@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:15 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/14 16:32:20 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/15 16:27:13 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,11 +26,29 @@ class	HttpRequest
 		{
 			PARSING_HEADERS,
 			PARSING_HEADERS_DONE,
+			PARSING_HEADERS_INVALID,
 			PARSING_BODY,
 			PARSING_BODY_DONE,
-			INVALID
+			PARSING_BODY_INVALID
 		};
 
+		enum	ChunkedStatus
+		{
+			PARSING_CHUNK_SIZE,
+			PARSING_CHUNK_DATA,
+			PARSING_CHUNK_DATA_CRLF,
+			PARSING_CHUNK_LAST_CRLF,
+			PARSING_CHUNK_DONE,
+			PARSING_CHUNK_ERROR
+		};
+
+		enum	BodySentMethod
+		{
+			BM_NOBODY,
+			BM_CONTENT_LENGTH,
+			BM_CHUNKED
+		};
+		
 		enum	ConnectionType
 		{
 			CONN_UNSET,
@@ -69,7 +87,6 @@ class	HttpRequest
 		virtual ~HttpRequest(void);
 
 		
-		// static const size_t	maxBytes = MAX_REQUEST_LINE + MAX_HEADERS_SIZE + MAX_BODY_SIZE;
 		
 
 
@@ -91,8 +108,12 @@ class	HttpRequest
 		unsigned short		_httpStatusCode;
 		size_t				_headersSize;
 		size_t				_headersCount;
-		size_t				_maxBodySize;
 
+		size_t				_maxBodySize;
+		BodySentMethod		_bodySentMethod;
+		ChunkedStatus		_chunkedStatus;
+		size_t				_currentChunkSize;
+		
 
 		// Request line
 		HttpMethods::Type	_method;
@@ -156,8 +177,9 @@ class	HttpRequest
 		bool	setTransferEncoding(const TStr& headerValue);
 
 		// Parsing Body
-		bool	parseBody(void);		// TO IMPLEMENT
-		bool	parseContentLengthBody(void);
+		HttpRequest::Status	parseBody(void);
+		HttpRequest::Status	parseContentLengthBody(void);
+		HttpRequest::Status	parseChunkedBody(void);
 
 		bool	error(unsigned short httpStatusCode, const TStr& step);
 
@@ -185,6 +207,9 @@ class	HttpRequest
 		const TStr& getReferer(void) const;
 		ContentEncodingType	getContentEncoding(void) const;
 		TransferEncodingType	getTransferEncoding(void) const;
+		const TStr&			getBody(void) const;
+
+		void	setMaxbodySize(size_t size);
 
 		// Parsing buffer into an http request
 		void				appendToBuffer(char	recvBuffer[], size_t bytes);

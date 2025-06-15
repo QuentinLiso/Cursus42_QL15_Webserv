@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:18 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/14 16:32:32 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/15 16:27:44 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,6 +22,9 @@ HttpRequest::HttpRequest(void) :
 	_headersSize(0),
 	_headersCount(0),
 	_maxBodySize(0),
+	_bodySentMethod(HttpRequest::BM_NOBODY),
+	_chunkedStatus(HttpRequest::PARSING_CHUNK_SIZE),
+	_currentChunkSize(0),
 	_method(HttpMethods::UNKNOWN),
 	_hostPort(0),
 	_contentLength(0),
@@ -651,11 +654,15 @@ bool	HttpRequest::setContentLength(const TStr& headerValue)
 	if (headerValue.empty())
 		return (error(400, "Empty Content-Length header"));
 
+	if (_bodySentMethod != BM_NOBODY)
+		return (error(400, "Request can only have at most either 1 header Content-Length or Transfer-Encoding"));
+
 	unsigned int	contentLength;
 	if (strToVal<unsigned int>(headerValue, contentLength) == false)
 		return (error(400, "Content-Length header must be a positive integer"));
 	
 	_contentLength = contentLength;
+	_bodySentMethod = HttpRequest::BM_CONTENT_LENGTH;
 	return (true);
 }
 
@@ -977,10 +984,13 @@ bool	HttpRequest::setTransferEncoding(const TStr& headerValue)
 {
 	if (headerValue.empty())
 		return (true);
-	
+	if (_bodySentMethod != HttpRequest::BM_NOBODY)
+		return (error(400, "Request can only have at most either 1 header Content-Length or Transfer-Encoding"));
+
 	if (areCaseInsensitiveEquals(headerValue, "chunked"))
 	{
 		_transferEncoding = TE_CHUNKED;
+		_bodySentMethod = HttpRequest::BM_CHUNKED;
 		return (true);
 	}
 	_transferEncoding = TE_INVALID;
@@ -990,10 +1000,100 @@ bool	HttpRequest::setTransferEncoding(const TStr& headerValue)
 
 // Parsing body
 
-bool	HttpRequest::parseBody(void)
+HttpRequest::Status	HttpRequest::parseBody(void)
 {
+	switch (_bodySentMethod)
+	{
+		case BM_CONTENT_LENGTH :	return (parseContentLengthBody());
+		case BM_CHUNKED :			return (parseChunkedBody());
+		default:					return (PARSING_BODY_DONE);
+	}
+}
+
+HttpRequest::Status	HttpRequest::parseContentLengthBody(void)
+{
+	if (_contentLength > _maxBodySize || _buffer.size() - _index > _maxBodySize)
+		return (PARSING_BODY_INVALID);
+
+	if (_buffer.size() - _index < _contentLength)
+		return (PARSING_BODY);
 	
-	return (false);
+	_body = _buffer.substr(_index, _contentLength);
+		return (PARSING_BODY_DONE);
+}
+
+HttpRequest::Status	HttpRequest::parseChunkedBody(void)
+{
+	if (_buffer.size() - _headersEndIndex > _maxBodySize)
+	{
+		error (413, "Body too large");
+		return (PARSING_BODY_INVALID);
+	}
+
+	while (true)
+	{
+		switch (_chunkedStatus)
+		{
+			case PARSING_CHUNK_SIZE :
+			{
+				size_t	pos = _buffer.find("\r\n", _index);
+				if (pos == TStr::npos)
+					return (PARSING_BODY);
+				
+				std::istringstream	iss(_buffer.substr(_index, pos - _index));
+				iss >> std::hex >> _currentChunkSize;
+				if(iss.fail())
+				{
+					error(400, "Invalid chunk size - Hex value required");
+					_chunkedStatus = PARSING_CHUNK_ERROR;
+					return (PARSING_BODY_INVALID);
+				}
+				_index = pos + 2;
+				_chunkedStatus = _currentChunkSize != 0 ? PARSING_CHUNK_DATA : PARSING_CHUNK_LAST_CRLF;
+				break ;
+			}
+			
+			case PARSING_CHUNK_DATA :
+				if (_buffer.size() < _index + _currentChunkSize)
+					return (PARSING_BODY);
+
+				_body.append(_buffer, _index, _currentChunkSize);
+				_index += _currentChunkSize;
+				_chunkedStatus = PARSING_CHUNK_DATA_CRLF;
+				break;
+			
+			
+			case PARSING_CHUNK_DATA_CRLF :
+				if (_buffer.size() < _index + 2)
+					return (PARSING_BODY);
+				if (_buffer[_index] != '\r' || _buffer[_index + 1] != '\n')
+				{
+					error(400, "Expected CRLF after chunk data based on expected chunk size");
+					_chunkedStatus = PARSING_CHUNK_ERROR;
+					return (PARSING_BODY_INVALID);
+				}
+				_index += 2;
+				_chunkedStatus = PARSING_CHUNK_SIZE;
+				break;
+
+			case PARSING_CHUNK_LAST_CRLF :
+				if (_buffer.size() < _index + 2)
+					return (PARSING_BODY);
+				if (_buffer[_index] != '\r' || _buffer[_index + 1] != '\n')
+				{
+					error(400, "Expected second CRLF after chunk size 0 to mark end of body");
+					_chunkedStatus = PARSING_CHUNK_ERROR;
+					return (PARSING_BODY_INVALID);
+				}
+				_index += 2;
+				_chunkedStatus = PARSING_CHUNK_DONE;
+				break;
+
+			case PARSING_CHUNK_DONE :	return (PARSING_BODY_DONE);
+			case PARSING_CHUNK_ERROR :	return (PARSING_BODY_INVALID);
+			default	:	break;
+		}
+	}
 }
 
 // Error
@@ -1003,7 +1103,7 @@ bool	HttpRequest::error(unsigned short httpStatusCode, const TStr& step)
 	oss << "Invalid request : " << step << " - Error code : " << httpStatusCode;
 	Console::log(Console::DEBUG, oss.str());
 	
-	_status = HttpRequest::INVALID;
+	_status = HttpRequest::PARSING_HEADERS_INVALID;
 	_httpStatusCode = httpStatusCode;
 	return (false);
 }
@@ -1050,6 +1150,9 @@ const std::map<TStr, TStr>& HttpRequest::getCookies(void) const { return _cookie
 const TStr& 				HttpRequest::getReferer(void) const { return _referer; }
 HttpRequest::ContentEncodingType	HttpRequest::getContentEncoding(void) const { return _contentEncoding; }
 HttpRequest::TransferEncodingType	HttpRequest::getTransferEncoding(void) const { return _transferEncoding; }
+const TStr&			HttpRequest::getBody(void) const { return _body; }
+
+void	HttpRequest::setMaxbodySize(size_t size) { _maxBodySize = size; }
 
 
 void	HttpRequest::appendToBuffer(char recvBuffer[], size_t bytes)
@@ -1069,14 +1172,14 @@ HttpRequest::Status	HttpRequest::tryParseHttpRequest(void)
 				if (_buffer.size() > HttpRequest::_maxSizeRequestAndHeaders)
 				{
 					error(413, "Headers too long"); // \r\n not found but max capacity reached
-					return (INVALID);
+					return (PARSING_HEADERS_INVALID);
 				}
 				_headersEndIndex = _buffer.size() < 3 ? 0 : _buffer.size() ;
 				return (PARSING_HEADERS);
 			}
 	
 			if (!parseRequestLine() || !parseHeaders())
-				return (INVALID);
+				return (PARSING_HEADERS_INVALID);
 			_status = PARSING_BODY;
 			_index = _headersEndIndex + 4;
 			return (PARSING_HEADERS_DONE);
@@ -1084,15 +1187,8 @@ HttpRequest::Status	HttpRequest::tryParseHttpRequest(void)
 		case PARSING_BODY:
 			if (_index > _buffer.size() - 1)
 				return (PARSING_BODY);
-
-			// IMPLEMENT BODY PARSING LOGIC HERE
-	
-			_status = PARSING_BODY_DONE; 
-			return (PARSING_BODY_DONE); // or PARSING BODY or INVALID
+			return (parseBody());
 		
-		
-		case PARSING_BODY_DONE:		return (PARSING_BODY_DONE);
-		case INVALID:				return (INVALID);
 		default		:				return (PARSING_BODY_DONE);
 	}
 }

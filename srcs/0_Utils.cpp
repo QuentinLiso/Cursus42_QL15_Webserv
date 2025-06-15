@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:29:17 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/13 00:52:22 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/15 08:47:07 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -322,6 +322,19 @@ std::string	getFileExtension(const std::string& filepath)
 }
 
 // HTTP METHODS
+TStr	HttpMethods::toString(HttpMethods::Type method)
+{
+	switch (method)
+	{
+		case	GET:	return ("GET");
+		case	POST:	return ("POST");
+		case	DELETE:	return ("DELETE");
+		case	PUT:	return ("PUT");
+		case	HEAD:	return ("HEAD");
+		default:		return ("UNKNOWN");
+	}
+}
+
 
 void HttpMethodsMap::fillBiMap(BiMap<HttpMethods::Type>& bimap)
 {

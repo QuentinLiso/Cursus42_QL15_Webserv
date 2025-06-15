@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/04 09:22:48 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/14 15:16:40 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/15 17:08:58 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -56,6 +56,8 @@ class	HttpResponse
 		HttpResponse::Status		_status;
 		const HttpRequest*			_httpRequest;
 		const LocationConfig*		_locationConfig;
+		TStr						_resolvedPath;
+		int							_requestResolvedPathStatResult;
 		struct stat					_requestResolvedPathStatus;
 		unsigned short				_statusCode;	
 		std::map<TStr, TStr> 		_headers;
@@ -86,28 +88,17 @@ class	HttpResponse
 		TStr					getParentDirectory(const TStr& resolvedPath);
 		unsigned short			isDirectoryEmpty(const TStr& resolvedPath);
 
-		// POST
-		HttpResponse::Status	prepareResponseToPostPutFromHeaders(const TStr& resolvedPath);
+		// POST + PUT
+		HttpResponse::Status	prepareResponseToPutFromHeaders(const TStr& resolvedPath);
+		HttpResponse::Status	prepareResponseToPostFromHeaders(const TStr& resolvedPath);
+		HttpResponse::Status	prepareResponseToPostFromBody(const TStr& resolvedPath);
+
+		// CGI
+		unsigned short	handleCgi(const TStr& resolvedPath);
+		void			buildExecveArgs(const TStr& resolvedPath, TStrVect& tmpEnvp, std::vector<char*>& argv, std::vector<char*>& envp);
+		unsigned short	prepareResponseFromCgi(const TStr& resolvedPath, const TStr& cgiOutput);
 		
-		// PUT
-
-
-
-
-		bool	checkPermissionAccession(const TStr& resolvedPath);
-
-		// 6 - Handling well formed requests
-		bool	handleResolvedPath(const TStr& resolvedPath);
-
-		// 7 - Handling a request for a directory
-		bool	handleRequestedDirectory(const TStr& resolvedPath);
-		bool	handleRequestedDirectoryIndexFile(const TStr& filepath);
-		bool	handleRequestedDirectoryAutoindex(const TStr& folderpath);
-
-		// 8 - Handling a request for a static file
-		bool	handleRequestedFile(const TStr& resolvedPath);
-		bool	handleRequestedStaticFile(const TStr& resolvedPath);
-
+		
 		// 9 - Handling error requests
 		TStr	createDefaultStatusPage(ushort statusCode);
 		HttpResponse::Status	handleErrorRequest(ushort statusCode);
@@ -123,7 +114,9 @@ class	HttpResponse
 
 		// 11 - Set HttpResponse fields from request
 		HttpResponse::Status	prepareResponseFromRequestHeadersComplete(const HttpRequest* httpRequest, const LocationConfig* locationConfig);
-		HttpResponse::Status	prepareResponseInvalidRequest(unsigned short code);
+		HttpResponse::Status	prepareResponseFromRequestBodyComplete(void);
+		HttpResponse::Status	prepareResponseInvalidHeadersRequest(unsigned short code);
+		HttpResponse::Status	prepareResponseInvalidBodyRequest(unsigned short code);
     	
 		// 12 - Convert HttpResponse fields to a string to send
 		TStr	toString() const;

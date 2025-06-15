@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:03 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/14 15:20:31 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/14 18:49:42 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -55,7 +55,8 @@ class ClientConnection
 		// 3 - Preparing response
 		HttpResponse::Status	prepareResponseFromRequestHeadersComplete(void);
 		ReadStatus				prepareResponseFromRequestBodyComplete(void);
-		ReadStatus				prepareResponseInvalidRequest(unsigned short code, ReadStatus readStatus);
+		ReadStatus				prepareResponseInvalidHeadersRequest(unsigned short code, ReadStatus readStatus);
+		ReadStatus				prepareResponseInvalidBodyRequest(unsigned short code, ReadStatus readStatus);
 		
 		// 4 - Sending response
 		void	sendResponseHeader(void);
