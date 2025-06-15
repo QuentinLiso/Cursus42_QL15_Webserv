@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:18 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/15 16:27:44 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/15 18:25:36 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -1130,19 +1130,18 @@ void	HttpRequest::reset(void)
 
 
 // Getters
+HttpRequest::Status 		HttpRequest::getStatus(void) const { return _status; }
+const TStr& 				HttpRequest::getBuffer(void) const { return _buffer; }
+unsigned short				HttpRequest::getStatusCode(void) const { return _httpStatusCode; }
 
-HttpRequest::Status HttpRequest::getStatus(void) const { return _status; }
-const TStr& HttpRequest::getBuffer(void) const { return _buffer; }
-unsigned short	HttpRequest::getStatusCode(void) const { return _httpStatusCode; }
-
-HttpMethods::Type	HttpRequest::getMethod(void) const { return _method; }
-const TStr& 		HttpRequest::getUriPath(void) const { return _uriPath; }
-const TStr&			HttpRequest::getUriQuery(void) const { return _uriQuery; }
-const TStr&			HttpRequest::getVersion(void) const { return _version; }
-const TStr&			HttpRequest::getHostAddress(void) const { return _hostAddress; }
-ushort				HttpRequest::getHostPort(void) const { return _hostPort; }
-uint				HttpRequest::getContentLength(void) const { return _contentLength; }
-const TStr& 		HttpRequest::getUserAgent(void) const { return _userAgent; }
+HttpMethods::Type			HttpRequest::getMethod(void) const { return _method; }
+const TStr& 				HttpRequest::getUriPath(void) const { return _uriPath; }
+const TStr&					HttpRequest::getUriQuery(void) const { return _uriQuery; }
+const TStr&					HttpRequest::getVersion(void) const { return _version; }
+const TStr&					HttpRequest::getHostAddress(void) const { return _hostAddress; }
+ushort						HttpRequest::getHostPort(void) const { return _hostPort; }
+uint						HttpRequest::getContentLength(void) const { return _contentLength; }
+const TStr& 				HttpRequest::getUserAgent(void) const { return _userAgent; }
 HttpRequest::ConnectionType	HttpRequest::getConnection(void) const { return _connection; }
 HttpRequest::MediaType 		HttpRequest::getContentType(void) const { return _contentType; }
 const TStr& 				HttpRequest::getMultipartBoundary(void) const { return _multipartBoundary; }
@@ -1150,10 +1149,9 @@ const std::map<TStr, TStr>& HttpRequest::getCookies(void) const { return _cookie
 const TStr& 				HttpRequest::getReferer(void) const { return _referer; }
 HttpRequest::ContentEncodingType	HttpRequest::getContentEncoding(void) const { return _contentEncoding; }
 HttpRequest::TransferEncodingType	HttpRequest::getTransferEncoding(void) const { return _transferEncoding; }
-const TStr&			HttpRequest::getBody(void) const { return _body; }
+const TStr&							HttpRequest::getBody(void) const { return _body; }
 
 void	HttpRequest::setMaxbodySize(size_t size) { _maxBodySize = size; }
-
 
 void	HttpRequest::appendToBuffer(char recvBuffer[], size_t bytes)
 {

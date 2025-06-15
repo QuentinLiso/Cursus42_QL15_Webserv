@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/01 12:02:42 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/13 09:48:26 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/16 00:50:06 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,36 +22,53 @@
 
 class	Server
 {
-	private:
-		int						_epollfd;
-		int						_eventsReady;
-		struct epoll_event		_eventQueue[64];
-
-		ListeningSocket*		_socketsfds[MAX_FD];
-		ClientConnection*		_clientsfds[MAX_FD];
-
-		int						_error;
+	public :
+		enum	FdType
+		{
+			LISTENING_SOCKET,
+			CLIENT_CONNECTION,
+			CGI_PIPE
+		};
 		
-		int		addListeningSockets(const std::map<TIPPort, HostToServerMap>& runtimeBuild);
-		int 	registerSingleFdToEpoll(int fd);
-		int		registerSocketsToEpoll(void);
-		int		waitForConnections(int timeout = -1);
-		int		acceptConnection(ListeningSocket* listeningSocket);
-		
-		void	logIpClient(struct sockaddr_in* addr, int listeningSockFd, int clientfd) const;
-		int		getClientRequest(int fd);
-		int 	swtichSingleFdToEpollOut(int fd);
-		int		getClientResponse(int fd);
-		int		closeConnection(int fd);
-		
-		int	error(const TStr& msg);
-		
-	public:
 		Server(void);
 		virtual ~Server(void);
 
+	private:
+		struct FdContext {
+			int		_fd;
+			void*	_data;
+			FdType	_fdType;
+		};
+		
+		FdContext*				_fdContexts[MAX_FD];
+		int						_epollfd;
+		int						_eventsReady;
+		struct epoll_event		_eventQueue[64];
+		int						_error;
+
+		// Init
+		int		createEpoll(void);
+		int		createListeningSockets(const std::map<TIPPort, HostToServerMap>& runtimeBuild);
+
+		// Monitor fd activity
+		void	fdActivityMonitor(int eventQueueIndex);
+		int     createClientConnection(ListeningSocket* ListeningSocket);
+		int		getClientRequest(int fd);
+		int		getClientResponse(int fd);
+		int		closeConnection(int fd);
+		
+		// Logs
+		void	logIpClient(struct sockaddr_in* addr, int listeningSockFd, int clientfd) const;
+		int	error(const TStr& msg);
+		
+	public:
+		// Handle fds
+		void	registerFdContext(int fd, void* data, FdType fdType);
+		int 	registerSingleFdToEpollFd(int fd, int epollEvent, int epollCtlOperation);
+
+		// Make server ready
 		void	makeServerReady(const Builder& builder);
-		void	run(void);
+		void	run(int timeout = -1);
 };
 
 #endif
