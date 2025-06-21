@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:09 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/22 00:31:54 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/22 00:57:42 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -402,7 +402,23 @@ bool	ClientConnection::sendFromBufferDone(void)
 bool	ClientConnection::sendFromFdDone(void)
 {
 	char	buffer[8192];
-	
+
+	ssize_t	bytesSent = 0;
+	if (!_sendBuffer.empty())
+	{
+		_sendOffset = 0;
+		while (_sendOffset < _sendBuffer.size())
+		{
+			bytesSent = send(_fd, _sendBuffer.c_str() + _sendOffset, _sendBuffer.size() - _sendOffset, 0);
+			if (bytesSent <= 0)
+				return (false);
+			_sendOffset += bytesSent;
+		}
+		_actualBytesSent += _sendOffset;
+		_sendBuffer.clear();
+		_sendOffset = 0;
+	}
+
 	ssize_t	bytesRead = read(_sendFd, buffer, sizeof(buffer));
 	if (bytesRead < 0)
 		return (false);
@@ -412,9 +428,12 @@ bool	ClientConnection::sendFromFdDone(void)
 	size_t	totalBytesSent = 0;
 	while (totalBytesSent < static_cast<size_t>(bytesRead))
 	{
-		ssize_t	bytesSent = send(_fd, buffer + totalBytesSent, bytesRead - totalBytesSent, 0);
+		bytesSent = send(_fd, buffer + totalBytesSent, bytesRead - totalBytesSent, 0);
 		if (bytesSent <= 0)
+		{
+			_sendBuffer.append(buffer, totalBytesSent, bytesRead - totalBytesSent);
 			return (false);
+		}
 		totalBytesSent += bytesSent;
 	}
 	_actualBytesSent += totalBytesSent;
