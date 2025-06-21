@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:15 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/19 23:08:17 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/22 00:13:45 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -60,6 +60,7 @@ class	HttpRequest
 		size_t				_headersCount;
 		size_t				_maxBodySize;
 		size_t				_requestBodySizeCount;
+		size_t				_actualChunkedDataSize;
 		RequestBodyType		_requestBodyType;
 		static uint			_requestBodyParsingFdTmpCount;
 		int					_requestBodyParsingFd;
@@ -99,6 +100,7 @@ class	HttpRequest
 		const TStr&				getRequestBuffer(void) const;
 		const HttpRequestData&	getHttpRequestData(void) const;
 		size_t					getRequestBodySize(void) const;
+		size_t					getActualChunkedDataSize(void) const;
 		const TStr&				getRequestBodyParsingFilepath(void) const;
 
 		// For testing

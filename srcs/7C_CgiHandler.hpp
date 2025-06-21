@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/19 16:19:43 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/21 16:55:48 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/22 00:21:21 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -72,15 +72,14 @@ class	CgiHandler
 		std::map<TStr, TStr>	_cgiOutputHeaders;
 
 		bool		_cgiOutputHeadersParsingComplete;
-
-
-
-
 		int			_cgiOutputCompleteFd;
 		static uint	_cgiOutputCompleteFdTmpCount;
 		TStr		_cgiOutputCompleteFilepath;
 		ssize_t		_totalCgiOutputSize;
 		bool		_cgiReadFromOutputComplete;
+
+		size_t		_actualBytesWrittenToCgiInput;
+		size_t		_actualBytesReadFromCgiOutput;
 
 		CgiState	setupCgiOutput(const HttpRequest& httpRequest, const HttpRequestResolution& httpResolution);
 		CgiState	setupCgiInputOutput(const HttpRequest& httpRequest, const HttpRequestResolution& httpResolution);
@@ -115,6 +114,9 @@ class	CgiHandler
 		const std::map<TStr, TStr>&	getCgiOutputHeaders(void) const;
 		bool		isCgiReadFromOutputComplete(void) const;
 		void		setOutOnly(bool val);
+
+		size_t		getActualBytesWrittenToCgiInput(void) const;
+		size_t		getActualBytesReadFromCgiOutput(void) const;
 };
 
 #endif

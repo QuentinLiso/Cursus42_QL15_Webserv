@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/19 16:19:45 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/21 17:10:22 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/22 00:21:00 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,7 +27,9 @@ CgiHandler::CgiHandler(void)
 			_cgiOutputContentLength(-1),
 			_cgiOutputCompleteFd(-1),
 			_totalCgiOutputSize(0),
-			_cgiReadFromOutputComplete(false)
+			_cgiReadFromOutputComplete(false),
+			_actualBytesWrittenToCgiInput(0),
+			_actualBytesReadFromCgiOutput(0)
 {
 	_inputPipeFd[0] = -1;
 	_inputPipeFd[1] = -1;
@@ -224,6 +226,7 @@ CgiHandler::CgiState	CgiHandler::writeToCgiInput(void)
 		}
 
 		totalBytesWritten += bytesWritten;
+		_actualBytesWrittenToCgiInput += totalBytesWritten;
 	}
 	if (static_cast<size_t>(bytesRead) < sizeof(buffer))
 	{
@@ -251,7 +254,7 @@ CgiHandler::CgiState	CgiHandler::readFromCgiOutput(void)
 			return (errorRunning(502, "EOF reached without end of headers", CGI_RUNNING_ERROR));
 		return (CGI_READING_FROM_OUTPUT_DONE);
 	}
-
+	_actualBytesReadFromCgiOutput += bytesRead;
 	if (!_cgiOutputHeadersParsingComplete && !_outOnly)
 		return (handleCgiOutputHeadersIncomplete(buffer, static_cast<size_t>(bytesRead), sizeof(buffer)));
 
@@ -265,6 +268,7 @@ CgiHandler::CgiState	CgiHandler::readFromCgiOutput(void)
 		totalBytesWritten += bytesWritten;
 	}
 	_totalCgiOutputSize += totalBytesWritten;
+
 	if (static_cast<size_t>(bytesRead) < sizeof(buffer))
 	{
 		close(_cgiOutputCompleteFd);
@@ -401,3 +405,6 @@ const std::map<TStr, TStr>&	CgiHandler::getCgiOutputHeaders(void) const { return
 bool					CgiHandler::isCgiReadFromOutputComplete(void) const { return _cgiReadFromOutputComplete; }
 
 void					CgiHandler::setOutOnly(bool val) { _outOnly = val; }
+
+size_t		CgiHandler::getActualBytesWrittenToCgiInput(void) const { return _actualBytesWrittenToCgiInput; }
+size_t		CgiHandler::getActualBytesReadFromCgiOutput(void) const { return _actualBytesReadFromCgiOutput; }

@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:18 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/21 18:07:02 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/22 00:12:08 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,6 +21,7 @@ HttpRequest::HttpRequest() :
 	_headersCount(0),
 	_maxBodySize(0),
 	_requestBodySizeCount(0),
+	_actualChunkedDataSize(0),
 	_requestBodyType(REQUEST_BODY_NO_BODY),
 	_requestBodyParsingFd(-1),
 	_currentChunkSize(0)
@@ -149,6 +150,7 @@ HttpRequest::RequestState	HttpRequest::setResponseBodyType(void)
 HttpRequest::RequestState	HttpRequest::prepareParsingHttpRequestBody(size_t maxBodySize, bool putStaticRequest, const TStr& resolvedPath)
 {
 	_maxBodySize = maxBodySize;
+	_maxBodySize = INT_MAX;
 	if (_httpRequestData.getContentLength() > _maxBodySize)		// Content-Length announced is greater that max body size -> error
 		return (error(413, "Content Length of the body sent by client is greater that max body size", PARSING_BODY_DONE));
 	
@@ -372,7 +374,7 @@ HttpRequest::RequestState	HttpRequest::parseChunkedBody(char recvBuffer[], size_
 						return (error(500, "Failed to write request buffer to request body fd", PARSING_BODY_INVALID));
 					totalBytesWritten += bytesWritten;
 				}
-
+				_actualChunkedDataSize += totalBytesWritten;
 				_requestBodySizeCount += _currentChunkSize + 2;
 				_requestBuffer.erase(0, _currentChunkSize + 2);
 				_requestState = PARSING_CHUNK_SIZE;
@@ -475,6 +477,7 @@ HttpRequest::RequestState	HttpRequest::getHttpRequestState(void) const { return 
 const TStr&					HttpRequest::getRequestBuffer(void) const { return _requestBuffer; }
 const HttpRequestData&		HttpRequest::getHttpRequestData(void) const { return _httpRequestData; }
 size_t						HttpRequest::getRequestBodySize(void) const { return _requestBodySizeCount; }
+size_t						HttpRequest::getActualChunkedDataSize(void) const { return _actualChunkedDataSize; }
 const TStr&					HttpRequest::getRequestBodyParsingFilepath(void) const { return _requestBodyParsingFilepath; }
 
 // For testing

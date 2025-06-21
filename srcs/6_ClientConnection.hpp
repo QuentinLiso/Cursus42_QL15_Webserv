@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:03 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/21 11:26:23 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/22 00:26:28 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -43,6 +43,14 @@ class ClientConnection
 			STATE_CGI_FINISHED,
 		};
 
+		enum	SendState
+		{
+			SENDING_HEADERS,
+			SENDING_BODY_STRING,
+			SENDING_BODY_FD,
+			SENDING_DONE
+		};
+
 		ClientConnection(Server& server, int fd, const ListeningSocket* relatedListeningSocket);
 		virtual ~ClientConnection(void);
 
@@ -57,10 +65,13 @@ class ClientConnection
 		HttpRequest					_httpRequest;
 		HttpRequestResolution		_httpResolution;
 		CgiHandler					_cgiHandler;
-		int							_fdBodyCgiIn;
-		TStr						_cgiOutBuffer;
-		bool						_cgiOutFinished;
 		HttpResponse				_httpResponse;
+
+		SendState					_sendState;
+		TStr						_sendBuffer;
+		size_t						_sendOffset;
+		int							_sendFd;
+		size_t						_actualBytesSent;
 		
 		// Events functions
 		void	handleReadingHeaders(void);
@@ -93,14 +104,18 @@ class ClientConnection
 		void	handleCgiValid(void);
 
 		void	handleReadyToSend(void);
+		void	handleSendingHeaders(void);
+		void	handleSendingBodyFromString(void);
+		void	handleSendingBodyFromFd(void);
+		void	handleSendingDone(void);
+		bool	sendFromBufferDone(void);
+		bool	sendFromFdDone(void);
+
+
 		void	sendStr(const TStr& str);
 		void	sendFd(int fd);
 
 		
-
-
-
-
 
 	public:
 		// Event handler

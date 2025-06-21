@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/04 09:23:08 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/21 18:54:17 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/21 19:34:03 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -261,7 +261,7 @@ void	HttpResponse::setGetHeadStaticResponse(int responseStatusCode, const TStr& 
 	
 	const TStr mime = getMimeType(resolvedPath);
 	if (mime == "application/pdf" || mime.compare(0, 6, "image/") == 0)
-		_headers["Content-Disposition"] = "attachement";
+		_headers["Content-Disposition"] = "attachment";
 }
 
 void	HttpResponse::setGetHeadAutoindexResponse(int responseStatusCode, const TStr& resolvedPath, const LocationConfig* locationConfig, HttpMethods::Type method)
