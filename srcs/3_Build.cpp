@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/22 08:56:11 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/14 16:15:22 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/21 18:28:49 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -1071,7 +1071,10 @@ int	LocationConfig::setDirective(Statement* statement)
 		setError(statement->error("Invalid directive in location block"));
 		return (_error);
 	}
-	return ( (this->*(it->second))(statement) );
+	int	errorFound = (this->*(it->second))(statement);
+	if (errorFound)
+		_error = errorFound;
+	return (errorFound);
 }
 
 int	LocationConfig::inheritFromServerConfig(const ServerConfig* serverConfig)
@@ -1119,6 +1122,8 @@ int	LocationConfig::validLocationConfig(void)
 	if (_cgiPass.isSet() && _cgiExtensions.isSet() && !CgiInterpreterMap::areValidPairs(_cgiPass.getExecPath(), _cgiExtensions.getExtensions()))
 		errorFound = error("Invalid pairs of cgi bin and allowed cgi extensions");
 
+	if (_error)
+		return (_error);
 	return (errorFound);
 }
 

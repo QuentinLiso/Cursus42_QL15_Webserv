@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:15 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/15 16:27:13 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/19 23:08:17 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,211 +16,93 @@
 # include "Includes.hpp"
 # include "Console.hpp"
 # include "0_Utils.hpp"
-
+# include "5_ListeningSocket.hpp"
+# include "7A_HttpRequestData.hpp"
 
 class	HttpRequest
 {
 	public:
-		// 0 - Enums
-		enum	Status
+		enum	RequestState
 		{
-			PARSING_HEADERS,
-			PARSING_HEADERS_DONE,
-			PARSING_HEADERS_INVALID,
-			PARSING_BODY,
-			PARSING_BODY_DONE,
-			PARSING_BODY_INVALID
+			PARSING_HEADERS_NEED_DATA,	// OK
+			PARSING_HEADERS_END_FOUND,	// OK
+			PARSING_REQUEST_LINE_DONE,	// OK
+			PARSING_HEADERS_PROCESSING, // OK
+			PARSING_HEADERS_DONE,		// OK
+			PARSING_HEADERS_INVALID,	// OK
+
+			PARSING_BODY_FROM_BUFFER,	// OK
+			PARSING_BODY_CONTENT_LENGTH_NEED_DATA,	// OK
+			PARSING_CHUNK_SIZE,	// OK
+			PARSING_CHUNK_DATA,	// OK
+			PARSING_CHUNK_LAST_CRLF,	// OK
+			PARSING_BODY_DONE,		// OK
+			PARSING_BODY_INVALID	// OK
 		};
 
-		enum	ChunkedStatus
+		enum	RequestBodyType
 		{
-			PARSING_CHUNK_SIZE,
-			PARSING_CHUNK_DATA,
-			PARSING_CHUNK_DATA_CRLF,
-			PARSING_CHUNK_LAST_CRLF,
-			PARSING_CHUNK_DONE,
-			PARSING_CHUNK_ERROR
-		};
-
-		enum	BodySentMethod
-		{
-			BM_NOBODY,
-			BM_CONTENT_LENGTH,
-			BM_CHUNKED
+			REQUEST_BODY_NO_BODY,
+			REQUEST_BODY_CHUNKED,
+			REQUEST_BODY_CONTENT_LENGTH
 		};
 		
-		enum	ConnectionType
-		{
-			CONN_UNSET,
-			CONN_KEEP_ALIVE,
-			CONN_CLOSE,
-			CONN_INVALID
-		};
-
-		enum	MediaType
-		{
-			MEDIA_UNSET,
-			MEDIA_TEXT_HTML,
-			MEDIA_TEXT_PLAIN,
-			MEDIA_APPLICATION_FORM_URLENCODED,
-			MEDIA_MULTIPART_FORM_DATA,
-			MEDIA_INVALID
-		};
-
-		enum	ContentEncodingType
-		{
-			CE_UNSET,
-			CE_IDENTITY,
-			CE_INVALID
-		};
-
-		enum	TransferEncodingType
-		{
-			TE_UNSET,
-			TE_CHUNKED,
-			TE_INVALID	
-		};
-
-
 		// Constructor & destructor
 		HttpRequest(void);
 		virtual ~HttpRequest(void);
 
-		
-		
-
-
 	private:
-
-		static const size_t	_maxSizeRequestLine;
-		static const size_t	_maxSizeUri;
-		static const size_t	_maxHeaderCount;
-		static const size_t	_maxSizeHeaderLine;
-		static const size_t	_maxSizeHeaderName;
-		static const size_t	_maxSizeHeaderValue;
-		static const size_t	_maxSizeRequestAndHeaders;
-
-		// HttpRequest Logic
-		HttpRequest::Status	_status;
-		TStr				_buffer;
+		RequestState		_requestState;
+		TStr				_requestBuffer;
 		size_t				_index;
 		size_t				_headersEndIndex;
-		unsigned short		_httpStatusCode;
 		size_t				_headersSize;
 		size_t				_headersCount;
-
 		size_t				_maxBodySize;
-		BodySentMethod		_bodySentMethod;
-		ChunkedStatus		_chunkedStatus;
+		size_t				_requestBodySizeCount;
+		RequestBodyType		_requestBodyType;
+		static uint			_requestBodyParsingFdTmpCount;
+		int					_requestBodyParsingFd;
+		TStr				_requestBodyParsingFilepath;
+
 		size_t				_currentChunkSize;
-		
 
-		// Request line
-		HttpMethods::Type	_method;
-		TStr				_uriPath;
-		TStr				_uriQuery;
-		TStr				_version;
+		HttpRequestData		_httpRequestData;
 
-		// Headers - mandatory
-		TStr	_hostAddress;		
-		ushort	_hostPort;
-		uint	_contentLength;		
-		
-		// Headers - very common
-		TStr					_userAgent;
-		ConnectionType			_connection;
-		MediaType				_contentType;
-		TStr					_multipartBoundary;
-		std::map<TStr, TStr>	_cookies;
-		TStr					_referer;
-
-		// Headers - other
-		ContentEncodingType		_contentEncoding;
-		TransferEncodingType 	_transferEncoding;
+		// Headers
+		RequestState	findHeadersEnd(void);
+		RequestState	parseRequestLine(void);
+		RequestState	parseHeaders(void);
+		RequestState	parseHeaderLine(const TStr& headerLine);
+		RequestState	setResponseBodyType(void);
 
 		// Body
-		TStr	_body;
-
-		// Parsing Request Line
-		bool	parseRequestLine(void);
-		bool	parseMethod(const TStr& subRequestLine);
-		bool	parseUri(const TStr& subRequestLine);
-		static bool	isForbiddenRawByteUriPath(unsigned char c);
-		static bool	isForbiddenDecodedByteUriPath(unsigned char c);
-		static bool	isForbiddenRawByteUriQuery(unsigned char c);
-		static bool	isForbiddenDecodedByteUriQuery(unsigned char c);
+		void			setMaxbodySize(size_t size);		
+		RequestState	prepareParsingHttpRequestBody(size_t maxBodySize, bool putStaticRequest, const TStr& resolvedPath);
+		RequestState	parseHttpBodyFromRequestBuffer(bool putStaticRequest);
+		RequestState	parseChunkedHttpBodyFromRequestBuffer(void);
+		bool			setChunkSizeHexValue(const TStr&, size_t& out);
+		RequestState	parseContentLengthBody(char recvBuffer[], size_t bytesReceived);
+		RequestState	parseChunkedBody(char recvBuffer[], size_t bytesReceived);
 		
-		bool	checkUriEncoding(TStr& out, const TStr& request, bool (*forbiddenRawBytes)(unsigned char), bool (*forbiddenDecodedBytes)(unsigned char));
-		unsigned char	hexLiteralCharsToHexValueChar(unsigned char first, unsigned char second);
-		unsigned char	hexLiteralCharToValueChar(unsigned char c);
-		bool	isAllowedByte(unsigned char c, const unsigned char* forbiddenBytes);
-		bool	isValidUtf8(const TStr& decodedPath);
-		bool 	isValidContinuationByte(const unsigned char c);
-		bool	parseVersion(const TStr& subRequestLine);
-
-		// Parsing Headers
-		bool	parseHeaders(void);
-		bool	parseHeaderLine(const TStr& headerLine);
-		bool	setHeaderField(const TStr& headerName, const TStr& headerValue);
-		bool	setHeaderHost(const TStr& headerValue);
-		bool	isValidHostAddress(const TStr& hostAddress);
-		bool	setContentLength(const TStr& headerValue);
-		bool	setUserAgent(const TStr& headerValue);
-		bool	setConnection(const TStr& headerValue);
-		bool	setContentType(const TStr& headerValue);
-		bool	isValidMediaType(const TStr& mediaType);
-		bool	parseMediaParams(const TStr& mediaParams);
-		bool	setCookie(const TStr& headerValue);
-		bool	isValidCookie(const TStr& cookieKey, const TStr& cookieValue);
-		bool	setReferer(const TStr& headerValue);
-		bool	setContentEncoding(const TStr& headerValue);
-		bool	setTransferEncoding(const TStr& headerValue);
-
-		// Parsing Body
-		HttpRequest::Status	parseBody(void);
-		HttpRequest::Status	parseContentLengthBody(void);
-		HttpRequest::Status	parseChunkedBody(void);
-
-		bool	error(unsigned short httpStatusCode, const TStr& step);
+		// Error handling
+		RequestState	error(unsigned short httpStatusCode, const TStr& step, RequestState requestState);
 
 	public:
-
-		void	reset(void);
+		// Interface with client connection
+		RequestState	parseHttpRequest(char recvBuffer[], size_t bytesReceived);
+		RequestState	prepareParseHttpBody(const LocationConfig* locationConfig, bool putStaticRequest, const TStr& resolvedPath);
+		RequestState	parseHttpBody(char recvBuffer[], size_t bytesReceived);
 
 		// Getters
-		HttpRequest::Status	getStatus(void) const;
-		const TStr&	getBuffer(void) const;
-		unsigned short	getStatusCode(void) const;
+		RequestState			getHttpRequestState(void) const;
+		const TStr&				getRequestBuffer(void) const;
+		const HttpRequestData&	getHttpRequestData(void) const;
+		size_t					getRequestBodySize(void) const;
+		const TStr&				getRequestBodyParsingFilepath(void) const;
 
-		HttpMethods::Type getMethod(void) const;
-		const TStr& getUriPath(void) const;
-		const TStr& getUriQuery(void) const;
-		const TStr& getVersion(void) const;
-		const TStr& getHostAddress(void) const;
-		ushort		getHostPort(void) const;
-		uint		getContentLength(void) const;
-		const TStr& getUserAgent(void) const;
-		ConnectionType getConnection(void) const;
-		MediaType getContentType(void) const;
-		const TStr& getMultipartBoundary(void) const;
-		const std::map<TStr, TStr>& getCookies(void) const;
-		const TStr& getReferer(void) const;
-		ContentEncodingType	getContentEncoding(void) const;
-		TransferEncodingType	getTransferEncoding(void) const;
-		const TStr&			getBody(void) const;
-
-		void	setMaxbodySize(size_t size);
-
-		// Parsing buffer into an http request
-		void				appendToBuffer(char	recvBuffer[], size_t bytes);
-		HttpRequest::Status	tryParseHttpRequest(void);
-		
 		// For testing
 		void	setBuffer(const TStr& buffer);
-		void	parseRequestAndHeaders(void);
-
-		// Print
-		std::ostream&	printRequest(std::ostream& o) const;
 };
 
 #endif

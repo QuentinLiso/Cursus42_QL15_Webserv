@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:03 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/14 18:49:42 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/21 11:26:23 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,63 +16,119 @@
 #include "Includes.hpp"
 #include "Console.hpp"
 #include "0_Utils.hpp"
+#include "4_Server.hpp"
 #include "5_ListeningSocket.hpp"
 #include "7_HttpRequest.hpp"
+#include "7B_HttpRequestResolution.hpp"
+#include "7C_CgiHandler.hpp"
 #include "8_HttpResponse.hpp"
 
+class Server;
 
 class ClientConnection
 {
 	public:
-		// 0 - Enums
-		enum	ReadStatus
+		enum	ClientState
 		{
-			READ_CONNECTION_LOST,
-			READ_RECV_ERROR,
-			READ_AGAIN_LATER,
-			READ_OK,
+			STATE_READING_HEADERS,
+			STATE_REQUEST_RESOLUTION,
+			STATE_PREPARE_READING_BODY,
+			STATE_READING_BODY,
+			STATE_READY_TO_SEND,
+			STATE_SENDING_RESPONSE,
+			STATE_CLOSING_CONNECTION,
+			
+			STATE_CGI_PREPARE,
+			STATE_CGI_READY,
+			STATE_CGI_FINISHED,
 		};
 
-		enum	WriteStatus
-		{
-			WRITE_CONNECTION_LOST,
-			WRITE_SEND_ERROR,
-			WRITE_AGAIN_LATER,
-			WRITE_OK
-		};
-
-		// 1 - Constructor destructor
-		ClientConnection(int fd, const ListeningSocket* relatedListeningSocket);
+		ClientConnection(Server& server, int fd, const ListeningSocket* relatedListeningSocket);
 		virtual ~ClientConnection(void);
 
 	private:
 		// 2 - Variables
+		Server&							_server;
 		int     						_fd;
 		const ListeningSocket* const	_relatedListeningSocket;
-		HttpRequest						_httpRequest;
-		HttpResponse					_httpResponse;
+		ClientState						_clientConnectionState;
+		bool							_needEpollToProgress;
+
+		HttpRequest					_httpRequest;
+		HttpRequestResolution		_httpResolution;
+		CgiHandler					_cgiHandler;
+		int							_fdBodyCgiIn;
+		TStr						_cgiOutBuffer;
+		bool						_cgiOutFinished;
+		HttpResponse				_httpResponse;
 		
-		// 3 - Preparing response
-		HttpResponse::Status	prepareResponseFromRequestHeadersComplete(void);
-		ReadStatus				prepareResponseFromRequestBodyComplete(void);
-		ReadStatus				prepareResponseInvalidHeadersRequest(unsigned short code, ReadStatus readStatus);
-		ReadStatus				prepareResponseInvalidBodyRequest(unsigned short code, ReadStatus readStatus);
+		// Events functions
+		void	handleReadingHeaders(void);
+		void	handleReadingHeadersInvalid(void);
+		void	handleReadingHeadersDone(void);
+		void	handleClientDisconnectedWhileRecv(void);
+		void	handleRecvError(void);
+
+		void	handleRequestValidation(void);
+		void	handleValidGetHeadStatic(void);
+		void	handleValidGetHeadCgi(void);
+		void	handleValidGetHeadAutoindex(void);
+		void	handleValidDelete(void);
+		void	handleValidPostPut(void);
+		void	handleInvalidRequest(void);
+
+		void	handlePrepareReadingBody(void);
+		void	handlePrepareReadingBodyNeedsData(void);
+		void	handleParsingBodyDone(void);
+		void	handleReadingBodyInvalid(void);
+
+		void	handleReadingBody(void);
+
+		void	handleCgiPrepare(void);
+		void	handleCgiPrepareValid(void);
+		void	handleCgiPrepareError(void);
+
+		void	handleCgiReady(int events, int fd, FdType::Type fdType);
+		void	handleCgiRunningError(void);
+		void	handleCgiValid(void);
+
+		void	handleReadyToSend(void);
+		void	sendStr(const TStr& str);
+		void	sendFd(int fd);
+
 		
-		// 4 - Sending response
-		void	sendResponseHeader(void);
-		void	sendResponseBody(void);
-		void	sendResponseBodyFd(int bodyfd);
-		void	sendResponseBodyStr(const TStr& bodystr);
+
+
+
+
 
 	public:
+		// Event handler
+		void	handleEvent(int events, int fd, FdType::Type fdType);
+
 		// 4 - Getter
-		int     getFd(void) const;
-
-		// 5 - Read from and send to client
-		ReadStatus	readFromFd(void);
-		WriteStatus	sendToFd(void);
-
+		int     			getFd(void) const;
+		ClientState			getClientConnectionState(void) const;
+		const CgiHandler& 	getCgiHandler(void) const;
+		bool				needEpollEventToProgress(void) const;
 		
+		void	setClientConnectionSendingResponse(void);
+		void	setClientConnectionCgiReady(void);
+
+	// // old
+	// 	ReadStatus	readFromFd(void);
+	// 	WriteStatus	sendToFd(void);
+	// 	// 3 - Preparing response
+	// 	HttpResponse::Status	prepareResponseFromRequestHeadersComplete(void);
+	// 	ReadStatus				prepareResponseFromRequestBodyComplete(void);
+	// 	ReadStatus				prepareResponseInvalidHeadersRequest(unsigned short code, ReadStatus readStatus);
+	// 	ReadStatus				prepareResponseInvalidBodyRequest(unsigned short code, ReadStatus readStatus);
+	// 	// 4 - Sending response
+	// 	void	sendResponseHeader(void);
+	// 	void	sendResponseBody(void);
+	// 	void	sendResponseBodyFd(int bodyfd);
+	// 	void	sendResponseBodyStr(const TStr& bodystr);
+
 };
 
 

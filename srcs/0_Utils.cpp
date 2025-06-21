@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:29:17 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/15 08:47:07 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/21 11:26:53 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -335,6 +335,16 @@ TStr	HttpMethods::toString(HttpMethods::Type method)
 	}
 }
 
+TStr	FdType::toString(FdType::Type type)
+{
+	switch (type)
+	{
+		case FD_LISTENING_SOCKET :	return ("LISTENING SOCKET");
+		case FD_CLIENT_CONNECTION : return ("CLIENT CONNECTION");
+		case FD_CGI_PIPE :			return ("CGI PIPE");
+		default :					return ("UNKNOWN");
+	}
+}
 
 void HttpMethodsMap::fillBiMap(BiMap<HttpMethods::Type>& bimap)
 {

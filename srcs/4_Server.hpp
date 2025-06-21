@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/01 12:02:42 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/16 00:50:06 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/21 11:20:17 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,16 +20,11 @@
 #include "6_ClientConnection.hpp"
 #define MAX_FD 1024
 
+class	ClientConnection;
+
 class	Server
 {
 	public :
-		enum	FdType
-		{
-			LISTENING_SOCKET,
-			CLIENT_CONNECTION,
-			CGI_PIPE
-		};
-		
 		Server(void);
 		virtual ~Server(void);
 
@@ -37,7 +32,7 @@ class	Server
 		struct FdContext {
 			int		_fd;
 			void*	_data;
-			FdType	_fdType;
+			FdType::Type	_fdType;
 		};
 		
 		FdContext*				_fdContexts[MAX_FD];
@@ -53,18 +48,20 @@ class	Server
 		// Monitor fd activity
 		void	fdActivityMonitor(int eventQueueIndex);
 		int     createClientConnection(ListeningSocket* ListeningSocket);
-		int		getClientRequest(int fd);
-		int		getClientResponse(int fd);
-		int		closeConnection(int fd);
-		
+		void	handleClientConnection(FdContext* context, uint32_t events);
+
+
 		// Logs
 		void	logIpClient(struct sockaddr_in* addr, int listeningSockFd, int clientfd) const;
 		int	error(const TStr& msg);
 		
 	public:
 		// Handle fds
-		void	registerFdContext(int fd, void* data, FdType fdType);
-		int 	registerSingleFdToEpollFd(int fd, int epollEvent, int epollCtlOperation);
+		void	registerNewFdToEpoll(int fd, int epollEvent, int epollCtlOperation, void* data, FdType::Type fdType);
+		void	registerFdContext(int fd, void* data, FdType::Type fdType);
+		int 	registerSingleFdToEpoll(int fd, int epollEvent, int epollCtlOperation, FdType::Type fdType);
+		void	deregisterFdFromEpoll(int fd, FdType::Type fdType);
+
 
 		// Make server ready
 		void	makeServerReady(const Builder& builder);

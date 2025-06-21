@@ -6,7 +6,7 @@
 #    By: qliso <qliso@student.42.fr>                +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/05/07 11:54:51 by mafritz           #+#    #+#              #
-#    Updated: 2025/06/05 20:00:44 by qliso            ###   ########.fr        #
+#    Updated: 2025/06/19 18:19:18 by qliso            ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -23,10 +23,14 @@ SRCS_FILES	=		$(addsuffix .cpp,	\
 					5_ListeningSocket \
 					6_ClientConnection \
 					7_HttpRequest \
+					7A_HttpRequestData \
+					7B_HttpRequestResolution \
+					7C_CgiHandler \
 					8_HttpResponse \
 					Console \
 					main	\
 					)
+
 SRCS_DIR	=		./srcs/
 SRCS		=		$(addprefix $(SRCS_DIR), $(SRCS_FILES))
 
@@ -41,6 +45,9 @@ HEADERS		=		$(addsuffix .hpp,	\
 					5_ListeningSocket \
 					6_ClientConnection \
 					7_HttpRequest \
+					7A_HttpRequestData \
+					7B_HttpRequestResolution \
+					7C_CgiHandler \
 					8_HttpResponse \
 					Console \
 					Colors \

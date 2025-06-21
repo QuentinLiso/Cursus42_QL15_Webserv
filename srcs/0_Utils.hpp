@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:29:17 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/15 08:47:41 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/21 11:13:12 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,7 +18,7 @@
 // Some utilities
 std::vector<std::string>    split(const std::string &str, const std::string& delimiters);
 
-bool	strToBytes(std::string const& val, size_t& out, size_t maxBytes = 104857600U);
+bool	strToBytes(std::string const& val, size_t& out, size_t maxBytes = 304857600U);
 bool	fileToStr(const std::string& filename, TStr& out);
 char	safeStrIndex(const TStr& str, size_t i);
 void	toLowerStr(TStr& str);
@@ -64,6 +64,20 @@ namespace HttpMethods
 
 	TStr	toString(HttpMethods::Type	method);
 };
+
+
+namespace	FdType
+{
+	enum Type
+	{
+		FD_LISTENING_SOCKET,
+		FD_CLIENT_CONNECTION,
+		FD_CGI_PIPE
+	};
+	
+	TStr	toString(FdType::Type type);
+};
+
 
 
 # include "0_Utils.tpp"
