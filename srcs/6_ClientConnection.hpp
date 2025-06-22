@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:03 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/22 00:26:28 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/22 22:06:37 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -35,12 +35,16 @@ class ClientConnection
 			STATE_PREPARE_READING_BODY,
 			STATE_READING_BODY,
 			STATE_READY_TO_SEND,
+			STATE_SENDING_BODY_STR,
+			STATE_SENDING_BODY_FD,
+			
+			
 			STATE_SENDING_RESPONSE,
 			STATE_CLOSING_CONNECTION,
-			
 			STATE_CGI_PREPARE,
 			STATE_CGI_READY,
 			STATE_CGI_FINISHED,
+			STATE_PAUSE,
 		};
 
 		enum	SendState
@@ -72,7 +76,12 @@ class ClientConnection
 		size_t						_sendOffset;
 		int							_sendFd;
 		size_t						_actualBytesSent;
-		
+		bool						_sendFdClear;
+
+		std::ofstream				logfile;
+		static int					filenum;
+
+
 		// Events functions
 		void	handleReadingHeaders(void);
 		void	handleReadingHeadersInvalid(void);
@@ -100,22 +109,12 @@ class ClientConnection
 		void	handleCgiPrepareError(void);
 
 		void	handleCgiReady(int events, int fd, FdType::Type fdType);
-		void	handleCgiRunningError(void);
-		void	handleCgiValid(void);
-
-		void	handleReadyToSend(void);
-		void	handleSendingHeaders(void);
-		void	handleSendingBodyFromString(void);
-		void	handleSendingBodyFromFd(void);
-		void	handleSendingDone(void);
-		bool	sendFromBufferDone(void);
-		bool	sendFromFdDone(void);
-
-
-		void	sendStr(const TStr& str);
-		void	sendFd(int fd);
-
+		void	handleCgiFinished(void);
 		
+		void	handleReadyToSend(void);
+		void	handleSendingStr(int events, FdType::Type fdType);
+		void	handleSendingFd(int events, FdType::Type fdType);
+
 
 	public:
 		// Event handler

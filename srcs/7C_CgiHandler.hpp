@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/19 16:19:43 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/22 00:21:21 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/22 18:32:36 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -59,46 +59,43 @@ class	CgiHandler
 		int			_inputPipeFd[2];
 		int			_outputPipeFd[2];
 
+		// Cgi input
 		int			_requestBodyInputFd;	
+		TStr		_cgiWriteInputBuffer;
+		size_t		_cgiWriteOffset;
+		bool		_cgiWriteToInputComplete;
+		size_t		_actualBytesWrittenToCgiInput;
 
-		CgiParsingState	_cgiParsingState;
-		TStr		_cgiOutputBuffer;
-		size_t		_index;
-		size_t		_cgiHeadersEndIndex;
-		size_t		_cgiHeadersSize;
-		size_t		_cgiHeadersCount;
-		ushort		_cgiOutputHeaderStatus;
-		int			_cgiOutputContentLength;
+		// Cgi output
+		TStr		_cgiOutputCompleteFilepath;
+		static uint	_cgiOutputCompleteFdTmpCount;
+		int			_cgiOutputCompleteFd;
+		TStr		_cgiReadOutputBuffer;
+		size_t		_cgiReadOffset;
+		bool		_cgiReadFromOutputComplete;
+		size_t		_actualBytesReadFromCgiOutput;
+
+		bool					_cgiHeadersEnd;
+		size_t					_index;
 		std::map<TStr, TStr>	_cgiOutputHeaders;
 
-		bool		_cgiOutputHeadersParsingComplete;
-		int			_cgiOutputCompleteFd;
-		static uint	_cgiOutputCompleteFdTmpCount;
-		TStr		_cgiOutputCompleteFilepath;
-		ssize_t		_totalCgiOutputSize;
-		bool		_cgiReadFromOutputComplete;
-
-		size_t		_actualBytesWrittenToCgiInput;
-		size_t		_actualBytesReadFromCgiOutput;
 
 		CgiState	setupCgiOutput(const HttpRequest& httpRequest, const HttpRequestResolution& httpResolution);
 		CgiState	setupCgiInputOutput(const HttpRequest& httpRequest, const HttpRequestResolution& httpResolution);
 		void		buildExecveArgsEnv(const HttpRequest& httpRequest, const HttpRequestResolution& httpResolution, std::vector<char*>& argv, TStrVect& tmpEnvp, std::vector<char*>& envp);
 		CgiState	openOutputCompleteFile(void);
-		CgiState	handleCgiOutputHeadersIncomplete(char readBuffer[], size_t bytesRead, size_t readBufferSize);
-		
-		CgiParsingState	findHeadersEnd(char readBuffer[], size_t bytesRead, size_t readBufferSize);
-		CgiParsingState	parseHeaders(void);
-		CgiParsingState	parseHeaderLine(const TStr& headerLine);
+		bool		findHeadersEnd(void);
+		void		parsingOutputHeaders(void);
 
-		CgiState	errorSetup(int cgiStatusCode, const TStr& msg, CgiState cgiState);
-		CgiState	errorRunning(int cgiStatusCode, const TStr& msg, CgiState cgiState);
-		CgiParsingState	errorParsing(const TStr& msg, CgiParsingState cgiParsingState);
+		CgiState		errorSetup(int cgiStatusCode, const TStr& msg, CgiState cgiState);
+		CgiState		errorRunning(int cgiStatusCode, const TStr& msg, CgiState cgiState);
 
 	public:
 		CgiState	setupCgi(const HttpRequest& httpRequest, const HttpRequestResolution& httpResolution);
-		CgiState	writeToCgiInput(void);
-		CgiState	readFromCgiOutput(void);
+		bool		writeToCgiInputPipe(void);
+		bool		readFromCgiOutputPipe(void);
+		bool		flushBuffer(void);
+		
 		
 		CgiState	getCgiState(void) const;
 		int			getCgiStatusCode(void) const;
@@ -113,6 +110,7 @@ class	CgiHandler
 		int			getTotalCgiOutputSize(void) const;
 		const std::map<TStr, TStr>&	getCgiOutputHeaders(void) const;
 		bool		isCgiReadFromOutputComplete(void) const;
+		bool		isCgiWriteFromInputComplete(void) const;
 		void		setOutOnly(bool val);
 
 		size_t		getActualBytesWrittenToCgiInput(void) const;

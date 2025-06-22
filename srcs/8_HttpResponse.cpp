@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/04 09:23:08 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/21 19:34:03 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/22 22:51:24 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -260,7 +260,7 @@ void	HttpResponse::setGetHeadStaticResponse(int responseStatusCode, const TStr& 
 	setContentTypeHeader(resolvedPath);
 	
 	const TStr mime = getMimeType(resolvedPath);
-	if (mime == "application/pdf" || mime.compare(0, 6, "image/") == 0)
+	if (mime == "application/pdf")
 		_headers["Content-Disposition"] = "attachment";
 }
 
@@ -353,7 +353,7 @@ void	HttpResponse::setPutStaticResponse(int responseStatusCode)
 void	HttpResponse::setCgiResponse(int responseStatusCode, const TStr& cgiOutputFilePath, int contentSize, const std::map<TStr, TStr>& cgiHeaders, const LocationConfig* locationConfig)
 {
 	_responseBodyStaticFd = open(cgiOutputFilePath.c_str(), O_RDONLY);
-	Console::log(Console::INFO, "[SERVER] Sending file " + cgiOutputFilePath + " opened on FD " + convToStr(_responseBodyStaticFd) + " to client");
+	Console::log(Console::INFO, "[SERVER] Preparing response to send file " + cgiOutputFilePath + " opened on FD " + convToStr(_responseBodyStaticFd) + " to client");
 	
 	if (_responseBodyStaticFd < 0)
 		return (setCustomErrorPage(500, locationConfig, ERROR_RESPONSE_BUILDING));
@@ -364,34 +364,11 @@ void	HttpResponse::setCgiResponse(int responseStatusCode, const TStr& cgiOutputF
 	setContentLengthHeader(contentSize);
 	for (std::map<TStr, TStr>::const_iterator it = cgiHeaders.begin(); it != cgiHeaders.end(); it++)
 	{
-		if (it->first == "status" || it->first == "content-length")
+		if (it->first == "Status" || it->first == "Content-length")
 			continue ;
 		_headers[it->first] = it->second;
 	}
 }
-
-
-
-// void	HttpResponse::setResponseStatusCode(unsigned short responseStatusCode)
-// { 
-// 	_responseStatusCode = responseStatusCode;
-// 	_reasonPhrase = getStatusCodeReason(responseStatusCode);
-// }
-
-// void	HttpResponse::setResponseBodyType(HttpResponse::ResponseBodyType responseBodyType) { _responseBodyType = responseBodyType; }
-
-// void	HttpResponse::setResponseBodyStaticFd(int fd)
-// { 
-// 	_responseBodyStaticFd = fd;
-// 	_responseBodyType = BODY_FILE_DESCRIPTOR;
-// }
-
-// void	HttpResponse::setResponseBodyStr(const TStr& str)
-// { 
-// 	_responseBodyStr = str;
-// 	_responseBodyType = BODY_STRING; 
-// }
-
 
 
 TStr HttpResponse::headersToString() const

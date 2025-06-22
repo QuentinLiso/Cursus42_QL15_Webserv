@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/19 16:19:45 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/22 00:21:00 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/22 20:33:10 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,22 +14,21 @@
 
 CgiHandler::CgiHandler(void) 
 		:	_cgiState(CGI_SETUP),
-			_cgiStatusCode(100),
+			_cgiStatusCode(200),
 			_outOnly(true),
 			_pid(-1),
+
 			_requestBodyInputFd(-1),
-			_cgiParsingState(PARSING_HEADERS_NEED_DATA),
-			_index(0),
-			_cgiHeadersEndIndex(0),
-			_cgiHeadersSize(0),
-			_cgiHeadersCount(0),
-			_cgiOutputHeaderStatus(200),
-			_cgiOutputContentLength(-1),
-			_cgiOutputCompleteFd(-1),
-			_totalCgiOutputSize(0),
-			_cgiReadFromOutputComplete(false),
+			_cgiWriteOffset(0),
+			_cgiWriteToInputComplete(false),
 			_actualBytesWrittenToCgiInput(0),
-			_actualBytesReadFromCgiOutput(0)
+
+			_cgiOutputCompleteFd(-1),
+			_cgiReadOffset(0),
+			_cgiReadFromOutputComplete(false),
+			_actualBytesReadFromCgiOutput(0),
+			_cgiHeadersEnd(false),
+			_index(0)
 {
 	_inputPipeFd[0] = -1;
 	_inputPipeFd[1] = -1;
@@ -54,6 +53,16 @@ CgiHandler::CgiState	CgiHandler::setupCgiOutput(const HttpRequest& httpRequest, 
 
 	else if (_pid == 0)
 	{
+		int devnull = open("/dev/null", O_RDONLY);
+		if (devnull >= 0)
+		{
+			dup2(devnull, STDIN_FILENO);
+			close(devnull);
+		}
+		else
+		{
+			close(STDIN_FILENO);
+		}
 		close(_outputPipeFd[0]);
 		int retDup = dup2(_outputPipeFd[1], STDOUT_FILENO);
 		close(_outputPipeFd[1]);
@@ -176,235 +185,167 @@ CgiHandler::CgiState	CgiHandler::errorSetup(int cgiStatusCode, const TStr& msg, 
 	return (cgiState);
 }
 
-CgiHandler::CgiState	CgiHandler::errorRunning(int cgiStatusCode, const TStr& msg, CgiHandler::CgiState cgiState)
-{
-	_cgiState = cgiState;
-	_cgiStatusCode = cgiStatusCode;
-	
-	if (_requestBodyInputFd > 0)	close(_requestBodyInputFd);
-	if (_cgiOutputCompleteFd > 0)	close(_cgiOutputCompleteFd);
 
-	Console::log(Console::DEBUG, msg);
-	return (cgiState);
+bool	CgiHandler::findHeadersEnd(void)
+{
+	size_t	limit = std::min(_cgiReadOutputBuffer.size(), 4096UL);
+	size_t	headersEnd = TStr::npos;
+	for (size_t i = 0; i + 3 < limit; i++)
+	{
+		if (_cgiReadOutputBuffer[i] == '\r' && _cgiReadOutputBuffer[i + 1] == '\n' && _cgiReadOutputBuffer[i + 2] == '\r' && _cgiReadOutputBuffer[i + 3] == '\n')
+		{
+			std::cout << "Headers end found : " << i << std::endl;
+			headersEnd = i;
+			break ;
+		}
+	}
+
+	if (headersEnd != TStr::npos)
+	{
+		// Headers End found within the limit :) Try parsing
+		parsingOutputHeaders();
+		_cgiHeadersEnd = true;
+		_cgiReadOutputBuffer.erase(0, headersEnd + 4);
+		return (true);
+	}
+	else if (headersEnd == TStr::npos && _cgiReadOutputBuffer.size() < 4096UL)
+	{
+		// Headers end not found but output buffer size is less than max size -> try again next round
+		return (false);
+	}
+	else
+	{
+		// Headers end not found and buffer bigger than max size -> consider no headers
+		_cgiHeadersEnd = true;
+		return (true);
+	}
 }
 
-CgiHandler::CgiParsingState	CgiHandler::errorParsing(const TStr& msg, CgiHandler::CgiParsingState cgiParsingState)
+void	CgiHandler::parsingOutputHeaders(void)
 {
-	Console::log(Console::DEBUG, msg);
-	return (cgiParsingState);
+	std::cout << "Parsing output headers : " << std::endl;
+	std::cout << _cgiReadOutputBuffer.substr(0, _cgiHeadersEnd) << std::endl;
+	while (_index < _cgiHeadersEnd)
+	{
+		size_t	lineEnd = _cgiReadOutputBuffer.find("\n", _index);
+		size_t	lineSize = lineEnd - _index;	// Line == "Something\n", _index = 'S' -> 0, lineEnd = '\n' -> 9, lineSize = 9
+
+		TStr	headerLine = _cgiReadOutputBuffer.substr(_index, lineEnd - _index);
+		std::cout << "Header line : " << headerLine << std::endl;
+		size_t	colon = headerLine.find(':');
+		if (colon == 0 || colon == TStr::npos || colon == headerLine.size() - 1)
+		{
+			_index += lineSize + 1;
+			continue ;
+		}
+		TStr	key = trimHeadAndTail(headerLine.substr(0, colon));
+		TStr	value = trimHeadAndTail(headerLine.substr(colon + 1));
+		
+		if (key == "Status")
+		{
+			std::istringstream iss(value);
+			int status;
+			if (!(iss >> status))
+				status = 200;
+			_cgiStatusCode = status;
+		}
+		else
+			_cgiOutputHeaders[key] = value;
+		_index += lineSize + 1;
+	}
 }
+
+
 
 CgiHandler::CgiState	CgiHandler::setupCgi(const HttpRequest& httpRequest, const HttpRequestResolution& httpResolution)
 {
 	return (_outOnly ? setupCgiOutput(httpRequest, httpResolution) : setupCgiInputOutput(httpRequest, httpResolution));
 }
 
-
-CgiHandler::CgiState	CgiHandler::writeToCgiInput(void)
+bool	CgiHandler::writeToCgiInputPipe(void)
 {
-	Console::log(Console::DEBUG, "Hello from write to CGI input");
-	char	buffer[8192];
+	char buffer[1024 * 24];
+	
+	while (!_cgiWriteInputBuffer.empty())
+	{
+		ssize_t	bytesWritten = write(_inputPipeFd[1], _cgiWriteInputBuffer.c_str(), _cgiWriteInputBuffer.size());
+		if (bytesWritten <= 0)
+		{
+			return (false);
+		}
+		_cgiWriteInputBuffer.erase(0, bytesWritten);
+		_actualBytesWrittenToCgiInput += bytesWritten;
+	}
 
-	ssize_t bytesRead = read(_requestBodyInputFd, buffer, sizeof(buffer));
+	ssize_t	bytesRead = read(_requestBodyInputFd, buffer, sizeof(buffer));
 	if (bytesRead < 0)
-		return (errorRunning(502, "Failed to read from request body input into buffer", CGI_RUNNING_ERROR));
-
+	{
+		return (false);
+	}
 	else if (bytesRead == 0)
 	{
-		close(_requestBodyInputFd);
-		return (CGI_WRITING_TO_INPUT_DONE);
+		_cgiWriteToInputComplete = true;
+		return (true);
 	}
-
-	ssize_t	totalBytesWritten = 0;
-	while (totalBytesWritten < bytesRead)
-	{
-		ssize_t bytesWritten = write(_inputPipeFd[1], buffer + totalBytesWritten, bytesRead - totalBytesWritten);
-		if (bytesWritten < 0)
-		{
-			close(_requestBodyInputFd);
-			return (errorRunning(502, "Failed to write from buffer into cgi input", CGI_RUNNING_ERROR));
-		}
-
-		totalBytesWritten += bytesWritten;
-		_actualBytesWrittenToCgiInput += totalBytesWritten;
-	}
-	if (static_cast<size_t>(bytesRead) < sizeof(buffer))
-	{
-		close(_requestBodyInputFd);
-		return (CGI_WRITING_TO_INPUT_DONE);
-	}
-
-	return (CGI_RUNNING);
+	_cgiWriteInputBuffer.append(buffer, bytesRead);
+	return (false);
 }
 
-CgiHandler::CgiState	CgiHandler::readFromCgiOutput(void)
+bool	CgiHandler::readFromCgiOutputPipe(void)
 {
-	Console::log(Console::DEBUG, "Hello from read from Cgi Output");
-	char	buffer[8192];
+	char buffer[1024 * 24];
 
-	ssize_t bytesRead = read(_outputPipeFd[0], buffer, sizeof(buffer));
+	ssize_t	bytesRead = read(_outputPipeFd[0], buffer, sizeof(buffer));
+
 	if (bytesRead < 0)
-		return (errorRunning(502, "Failed to read from cgi output into buffer", CGI_RUNNING_ERROR));
+		return (false);
+	if (bytesRead > 0)
+		_cgiReadOutputBuffer.append(buffer, bytesRead);
+	
+	if (!_cgiHeadersEnd)
+		findHeadersEnd();
+	
+	if (_cgiHeadersEnd)
+		flushBuffer();
 
-	else if (bytesRead == 0)
+	if (bytesRead == 0)
 	{
-		close(_cgiOutputCompleteFd);
 		_cgiReadFromOutputComplete = true;
-		if (!_cgiOutputHeadersParsingComplete)
-			return (errorRunning(502, "EOF reached without end of headers", CGI_RUNNING_ERROR));
-		return (CGI_READING_FROM_OUTPUT_DONE);
+		return (true);
 	}
-	_actualBytesReadFromCgiOutput += bytesRead;
-	if (!_cgiOutputHeadersParsingComplete && !_outOnly)
-		return (handleCgiOutputHeadersIncomplete(buffer, static_cast<size_t>(bytesRead), sizeof(buffer)));
-
-	ssize_t	totalBytesWritten = 0;
-	while (totalBytesWritten < bytesRead)
-	{
-		ssize_t bytesWritten = write(_cgiOutputCompleteFd, buffer + totalBytesWritten, bytesRead - totalBytesWritten);
-		if (bytesWritten < 0)
-			return (errorRunning(502, "Failed to write from buffer into cgi complete output tmp file", CGI_RUNNING_ERROR));
-
-		totalBytesWritten += bytesWritten;
-	}
-	_totalCgiOutputSize += totalBytesWritten;
-
-	if (static_cast<size_t>(bytesRead) < sizeof(buffer))
-	{
-		close(_cgiOutputCompleteFd);
-		_cgiReadFromOutputComplete = true;
-		return (CGI_READING_FROM_OUTPUT_DONE);
-	}
-
-	return (CGI_RUNNING);
+	return (false);
 }
 
-CgiHandler::CgiState	CgiHandler::handleCgiOutputHeadersIncomplete(char readBuffer[], size_t bytesRead, size_t readBufferSize)
+bool	CgiHandler::flushBuffer(void)
 {
-	_cgiOutputBuffer.append(readBuffer, bytesRead);
-	
-	_cgiParsingState = findHeadersEnd(readBuffer, bytesRead, readBufferSize);
-	if (_cgiParsingState == PARSING_HEADERS_INVALID)
-		return (errorRunning(502, "Headers end not found", CGI_RUNNING_ERROR));
-	else if (_cgiParsingState == PARSING_HEADERS_NEED_DATA)
-		return (CGI_RUNNING);
-	
-	_cgiParsingState = parseHeaders();
-	if (_cgiParsingState == PARSING_HEADERS_INVALID)
-		return (errorRunning(502, "Parsing CGI headers invalid", CGI_RUNNING_ERROR));
-	
-	_cgiOutputHeadersParsingComplete = true;
-	
-	ssize_t	remainingBytesToWrite = static_cast<ssize_t>(_cgiOutputBuffer.size() - (_cgiHeadersEndIndex + 4));
-	if (remainingBytesToWrite == 0 && bytesRead < readBufferSize)
-		return (CGI_READING_FROM_OUTPUT_DONE);
-
-	const char*	remainingBytes = _cgiOutputBuffer.c_str() + _cgiHeadersEndIndex + 4;
-	ssize_t	totalBytesWritten = 0;
-	while (totalBytesWritten < remainingBytesToWrite)
+	while (!_cgiReadOutputBuffer.empty())
 	{
-		ssize_t bytesWritten = write(_cgiOutputCompleteFd, remainingBytes + totalBytesWritten, remainingBytesToWrite - totalBytesWritten);
-		if (bytesWritten < 0)
-			return (errorRunning(502, "Failed to write from buffer into cgi complete output tmp file", CGI_RUNNING_ERROR));
-
-		totalBytesWritten += bytesWritten;
-	}
-	_totalCgiOutputSize += totalBytesWritten;
-	if (bytesRead < readBufferSize)
-	{
-		close(_cgiOutputCompleteFd);
-		_cgiReadFromOutputComplete = true;
-		return (CGI_READING_FROM_OUTPUT_DONE);
-	}
-	return (CGI_RUNNING);
-}
-
-CgiHandler::CgiParsingState	CgiHandler::findHeadersEnd(char readBuffer[], size_t bytesRead, size_t readBufferSize)
-{
-	_cgiHeadersEndIndex = _cgiOutputBuffer.find("\r\n\r\n");		
-	
-	if (_cgiHeadersEndIndex == TStr::npos)		// CRLF CRLF marking headers end not found
-	{	
-		if (_cgiOutputBuffer.size() > HttpRequestData::_maxSizeRequestAndHeaders)
-			return (errorParsing("Headers too long", PARSING_HEADERS_INVALID)); // \r\n not found but max capacity reached
-
-		if (bytesRead < readBufferSize)
-			return (errorParsing("EOF reached before headers end", PARSING_HEADERS_INVALID)); // \r\n not found but max capacity reached
-
-		_cgiHeadersEndIndex = _cgiOutputBuffer.size() < 3 ? 0 : _cgiOutputBuffer.size() ;
-		return (PARSING_HEADERS_NEED_DATA);
-	}
-	return (PARSING_HEADERS_END_FOUND);
-}
-
-CgiHandler::CgiParsingState	CgiHandler::parseHeaders(void)
-{
-	while (true)
-	{
-		size_t	lineEnd = _cgiOutputBuffer.find("\r\n", _index);		
-		size_t	lineSize = lineEnd - _index;
-		
-		if (lineSize == 0)		// CRLF found on an empty line -> end of headers
+		ssize_t	bytesWritten = write(_cgiOutputCompleteFd, _cgiReadOutputBuffer.c_str(), _cgiReadOutputBuffer.size());
+		if (bytesWritten <= 0)
 		{
-			_index += 2;
-			return (PARSING_HEADERS_DONE);
+			return (false);
 		}
-
-		if (lineSize > HttpRequestData::_maxSizeHeaderLine)
-			return (errorParsing("Parsing headers - Header size too long", PARSING_HEADERS_INVALID));
-
-		_cgiHeadersCount++;
-		if (_cgiHeadersCount > HttpRequestData::_maxHeaderCount)
-			return (errorParsing("Parsing headers - Too many headers", PARSING_HEADERS_INVALID));
-
-		if (parseHeaderLine(_cgiOutputBuffer.substr(_index, lineSize)) == PARSING_HEADERS_INVALID)
-			return (PARSING_HEADERS_INVALID);
-		
-		_cgiHeadersSize = 0;
-		_index = lineEnd + 2;
+		_cgiReadOutputBuffer.erase(0, bytesWritten);
+		_actualBytesReadFromCgiOutput += bytesWritten;
 	}
+	return (true);
 }
-
-CgiHandler::CgiParsingState		CgiHandler::parseHeaderLine(const TStr& headerLine)
-{
-	size_t	colon = headerLine.find(':');
-
-	if (colon == 0 || colon == std::string::npos)
-		return (errorParsing("Parsing header line", PARSING_HEADERS_INVALID));
-	if (colon >= HttpRequestData::_maxSizeHeaderName)
-		return (errorParsing("Parsing header line, header name too long", PARSING_HEADERS_INVALID));
-
-	TStr	headerName;
-	headerName.reserve(colon);
-	for (size_t i = 0; i < colon; i++)
-		headerName += std::tolower(headerLine[i]);
-	TStr	headerValue = trimHeadAndTail(headerLine.substr(colon + 1));
-	_cgiOutputHeaders[headerName] = headerValue;
-	return (PARSING_HEADERS_PROCESSING);
-}
-
-
 
 CgiHandler::CgiState	CgiHandler::getCgiState(void) const { return _cgiState; }
 int						CgiHandler::getCgiStatusCode(void) const { return _cgiStatusCode; }
 bool					CgiHandler::isOutOnly(void) const { return _outOnly; }
+void					CgiHandler::setOutOnly(bool val) { _outOnly = val; }
+
 pid_t					CgiHandler::getCgiPid(void) const { return _pid; }
 int						CgiHandler::getInputPipeWrite(void) const { return _inputPipeFd[1]; }
 int						CgiHandler::getOutputPipeRead(void) const { return _outputPipeFd[0]; }
-int						CgiHandler::getRequestBodyInputFd(void) const { return _requestBodyInputFd; }
-int						CgiHandler::getCgiCompleteOutputFd(void) const { return _cgiOutputCompleteFd; }
-const TStr&				CgiHandler::getCgiCompleteOutputFilename(void) const { return _cgiOutputCompleteFilepath; }
-int						CgiHandler::getTotalCgiOutputSize(void) const
-{ 
-	if (_totalCgiOutputSize > INT_MAX)
-		return (INT_MAX);
-	return static_cast<int>(_totalCgiOutputSize); 
 
-}
+int						CgiHandler::getRequestBodyInputFd(void) const { return _requestBodyInputFd; }
+bool					CgiHandler::isCgiWriteFromInputComplete(void) const { return _cgiWriteToInputComplete; }
+size_t					CgiHandler::getActualBytesWrittenToCgiInput(void) const { return _actualBytesWrittenToCgiInput; }
+
+const TStr&				CgiHandler::getCgiCompleteOutputFilename(void) const { return _cgiOutputCompleteFilepath; }
+int						CgiHandler::getCgiCompleteOutputFd(void) const { return _cgiOutputCompleteFd; }
 const std::map<TStr, TStr>&	CgiHandler::getCgiOutputHeaders(void) const { return _cgiOutputHeaders; }
 bool					CgiHandler::isCgiReadFromOutputComplete(void) const { return _cgiReadFromOutputComplete; }
-
-void					CgiHandler::setOutOnly(bool val) { _outOnly = val; }
-
-size_t		CgiHandler::getActualBytesWrittenToCgiInput(void) const { return _actualBytesWrittenToCgiInput; }
-size_t		CgiHandler::getActualBytesReadFromCgiOutput(void) const { return _actualBytesReadFromCgiOutput; }
+size_t					CgiHandler::getActualBytesReadFromCgiOutput(void) const { return _actualBytesReadFromCgiOutput; }
