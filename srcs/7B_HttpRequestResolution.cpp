@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:18 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/21 18:06:15 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 12:45:34 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -237,14 +237,14 @@ HttpRequestResolution::ResolutionState	HttpRequestResolution::isPutRequestValid(
 			{
 				if (access(_resolvedPath.c_str(), X_OK) != 0)	// Existing file not accessible
 					return (error(403, "PUT request on existing file not write accessible", RESOLUTION_INVALID));
-				_httpResolutionStatusCode = 200;
+				_httpResolutionStatusCode = 204;
 				return (RESOLUTION_VALID_PUT_CGI);
 			}
 			else
 			{
 				if (access(_resolvedPath.c_str(), W_OK) != 0)	// Existing file not accessible
 					return (error(403, "PUT request on existing file not write accessible", RESOLUTION_INVALID));
-				_httpResolutionStatusCode = 200;
+				_httpResolutionStatusCode = 204;
 				return (RESOLUTION_VALID_PUT_STATIC);
 			}
 		}

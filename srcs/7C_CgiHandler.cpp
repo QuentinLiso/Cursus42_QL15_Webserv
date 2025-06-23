@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/19 16:19:45 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/23 07:45:52 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 11:27:36 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -124,7 +124,6 @@ CgiHandler::CgiState	CgiHandler::setupCgiInputOutput(const HttpRequest& httpRequ
 	fcntl(_outputPipeFd[0], F_SETFL, O_NONBLOCK);
 	
 	_requestBodyInputFd = open(httpRequest.getRequestBodyParsingFilepath().c_str(), O_RDONLY);
-	// unlink(httpRequest.getRequestBodyParsingFilepath().c_str());
 	if (_requestBodyInputFd < 0)
 		return (errorSetup(502, "Opening the request body file for Cgi input failed", CGI_SETUP_ERROR));
 	return (openOutputCompleteFile());
@@ -160,7 +159,7 @@ void					CgiHandler::buildExecveArgsEnv(const HttpRequest& httpRequest, const Ht
 CgiHandler::CgiState	CgiHandler::openOutputCompleteFile(void)
 {
 	std::ostringstream	tmpFilename;
-	tmpFilename << "/home/qliso/Documents/Webserv_github/html/tmp/tmp_file_cgi_" << CgiHandler::_cgiOutputCompleteFdTmpCount++ << ".txt";
+	tmpFilename << "/home/qliso/Documents/Webserv_github/html/tmp/2_CgiOutput/tmp_file_cgi_" << CgiHandler::_cgiOutputCompleteFdTmpCount++ << ".txt";
 	_cgiOutputCompleteFilepath = tmpFilename.str();
 	_cgiOutputCompleteFd = open(_cgiOutputCompleteFilepath.c_str(), O_RDWR | O_CREAT | O_TRUNC, 0600);
 	if (_cgiOutputCompleteFd < 0)
@@ -168,7 +167,6 @@ CgiHandler::CgiState	CgiHandler::openOutputCompleteFile(void)
 		Console::log(Console::ERROR, strerror(errno));
 		return (errorSetup(502, "Opening the tmp output file failed", CGI_SETUP_ERROR));
 	}
-	// unlink(_cgiOutputCompleteFilepath.c_str());
 	return (CGI_SETUP_VALID);
 }
 

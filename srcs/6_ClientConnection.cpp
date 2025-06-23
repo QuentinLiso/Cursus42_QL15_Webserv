@@ -6,14 +6,14 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:09 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/23 10:46:37 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 12:44:28 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "6_ClientConnection.hpp"
 
 // Static
-int 	ClientConnection::filenum = 0;
+int 	ClientConnection::_logBytesSentFilecount = 0;
 
 // 1 - Constructor destructor
 
@@ -29,13 +29,12 @@ ClientConnection::ClientConnection(Server& server, int fd, const ListeningSocket
 			_sendOffset(0),
 			_sendFd(-1),
 			_actualBytesSent(0),
-			_sendFdClear(false)
+			_sendFdClear(false),
+			_logBytesSentFd(-1)
 {}
 
 ClientConnection::~ClientConnection(void)
-{
-	logfile.close();
-}
+{}
 
 
 
@@ -307,13 +306,16 @@ void	ClientConnection::handleCgiFinished(void)
 	_needEpollToProgress = false;
 }
 
-int	ClientConnection::i = 0;
-
 void	ClientConnection::handleReadyToSend(void)
 {
-	std::ostringstream oss;
-	oss << "/home/qliso/Documents/Webserv_github/html/tmp/bytes_sent_tmp_" << i++;
-	testsendfd = open(oss.str().c_str(), O_CREAT | O_TRUNC | O_RDWR, 0600);
+	if (LOG_BYTES_SENT)
+	{
+		std::ostringstream oss;
+		oss << "/home/qliso/Documents/Webserv_github/html/tmp/3_BytesSent/bytes_sent_tmp_" << ClientConnection::_logBytesSentFilecount++;
+		_logBytesSentFilename = oss.str();
+		_logBytesSentFd = open(_logBytesSentFilename.c_str(), O_CREAT | O_TRUNC | O_RDWR, 0600);
+		Console::log(Console::DEBUG, "Opening BytesSentLogfile : " + _logBytesSentFilename);
+	}
 	
 	_sendBuffer = _httpResponse.headersToString();
 	std::cout 	<< "********* RESPONSE headers *******\n"
@@ -325,8 +327,12 @@ void	ClientConnection::handleReadyToSend(void)
 				<< std::endl;
 	
 
-	
-	if (_httpResponse.getResponseBodyType() == HttpResponse::BODY_STRING)
+	if (_httpResponse.getResponseBodyType() == HttpResponse::BODY_NONE)
+	{
+		_clientConnectionState = STATE_SENDING_BODY_STR;
+		_needEpollToProgress = true;		
+	}
+	else if (_httpResponse.getResponseBodyType() == HttpResponse::BODY_STRING)
 	{
 		_sendBuffer += _httpResponse.getResponseBodyStr();
 		_clientConnectionState = STATE_SENDING_BODY_STR;
@@ -354,13 +360,15 @@ void	ClientConnection::handleSendingStr(int events, FdType::Type fdType)
 			}
 			else if (bytesSent == 0)
 				break ;
-			write(testsendfd, _sendBuffer.c_str(), bytesSent);
+			if (LOG_BYTES_SENT)
+				write(_logBytesSentFd, _sendBuffer.c_str(), bytesSent);
 			_sendBuffer.erase(0, bytesSent);
 			_actualBytesSent += bytesSent;
 		}
 		_clientConnectionState = STATE_CLOSING_CONNECTION;
 		_needEpollToProgress = false;
 	}
+	
 	if ((events & EPOLLHUP) && fdType == FdType::FD_CLIENT_CONNECTION)
 	{
 		_clientConnectionState = STATE_CLOSING_CONNECTION;
@@ -386,16 +394,16 @@ void	ClientConnection::handleSendingFd(int events, FdType::Type fdType)
 				return ;
 			}
 			else if (bytesSent == 0)
-			{
 				break ;
-			}
-			write(testsendfd, _sendBuffer.c_str(), bytesSent);
+				
+			if (LOG_BYTES_SENT)
+				write(_logBytesSentFd, _sendBuffer.c_str(), bytesSent);
+			
 			_sendBuffer.erase(0, bytesSent);		// buffer empty or not we don't know yet
 			_actualBytesSent += bytesSent;
+			
 			if (!_sendBuffer.empty())
-			{
 				return ;
-			}
 		}
 
 		if (!_sendFdClear)
@@ -403,17 +411,11 @@ void	ClientConnection::handleSendingFd(int events, FdType::Type fdType)
 			char	buffer[1024 * 8];
 			ssize_t	bytesRead = read(_sendFd, buffer, sizeof(buffer));
 			if (bytesRead < 0)
-			{
 				Console::log(Console::ERROR, strerror(errno));
-			}
 			else if (bytesRead == 0)
-			{
 				_sendFdClear = true;
-			}
 			else
-			{
 				_sendBuffer.append(buffer, bytesRead);
-			}
 		}
 
 		if (_sendFdClear && _sendBuffer.empty())
@@ -440,9 +442,30 @@ void	ClientConnection::handleClosingConnection(void)
 		close(_sendFd);
 		_sendFd = -1;
 	}
+	
+	// if (LOG_BYTES_SENT)
+	// {
+	// 	Console::log(Console::DEBUG, "[SERVER] Closing BytesSentLogfile" + _logBytesSentFilename + " opened on FD" + convToStr(_logBytesSentFd));
+	// 	close(_logBytesSentFd);
+	// }
+	
+	// if (DISCARD_TMP)
+	// {
+	// 	if (_httpResolution.getResolutionState() != HttpRequestResolution::RESOLUTION_VALID_PUT_STATIC)
+	// 		unlink(_httpRequest.getRequestBodyParsingFilepath().c_str());
+	// 	unlink(_cgiHandler.getCgiCompleteOutputFilename().c_str());
+	// 	if (LOG_BYTES_SENT)
+	// 	{
+	// 		unlink(_logBytesSentFilename.c_str());
+	// 	}
+	// 	std::ostringstream oss;
+	// 	oss << "[SERVER] Destroying tmp files : " 
+	// 		<< _httpRequest.getRequestBodyParsingFilepath() << '\t' 
+	// 		<< _cgiHandler.getCgiCompleteOutputFilename() << '\t'
+	// 		<< _logBytesSentFilename;
+	// 	Console::log(Console::DEBUG, oss.str());
+	// }
 }
-
-
 // Public
 void	ClientConnection::handleEvent(int events, int fd, FdType::Type fdType)
 {

@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:03 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/23 10:34:55 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 12:31:19 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,6 +22,9 @@
 #include "7B_HttpRequestResolution.hpp"
 #include "7C_CgiHandler.hpp"
 #include "8_HttpResponse.hpp"
+
+# define DISCARD_TMP false
+# define LOG_BYTES_SENT true
 
 class Server;
 
@@ -78,9 +81,9 @@ class ClientConnection
 		size_t						_actualBytesSent;
 		bool						_sendFdClear;
 
-		std::ofstream				logfile;
-		static int					filenum;
-
+		static int 					_logBytesSentFilecount;
+		TStr						_logBytesSentFilename;
+		int							_logBytesSentFd;
 
 		// Events functions
 		void	handleReadingHeaders(void);
@@ -111,8 +114,7 @@ class ClientConnection
 		void	handleCgiReady(int events, int fd, FdType::Type fdType);
 		void	handleCgiFinished(void);
 		
-		static int i;
-		int	testsendfd;
+
 
 		void	handleReadyToSend(void);
 		void	handleSendingStr(int events, FdType::Type fdType);

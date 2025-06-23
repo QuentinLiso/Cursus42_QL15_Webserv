@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:18 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/23 10:25:42 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 11:23:27 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -168,7 +168,7 @@ HttpRequest::RequestState	HttpRequest::prepareParsingHttpRequestBody(size_t maxB
 	else 
 	{
 		std::ostringstream	tmpFilename;
-		tmpFilename << "/home/qliso/Documents/Webserv_github/html/tmp/tmp_file" << HttpRequest::_requestBodyParsingFdTmpCount++ << ".txt";
+		tmpFilename << "/home/qliso/Documents/Webserv_github/html/tmp/1_BodyRequest/tmp_file" << HttpRequest::_requestBodyParsingFdTmpCount++ << ".txt";
 		_requestBodyParsingFilepath = tmpFilename.str();
 	}
 

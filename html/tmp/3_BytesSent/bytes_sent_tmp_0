@@ -1,0 +1,6 @@
+HTTP/1.1 204 No Content
+Connection: close
+Content-Length: 0
+Date: Mon, 23 Jun 2025 10:45:42 GMT
+Server: ft_webserv
+
