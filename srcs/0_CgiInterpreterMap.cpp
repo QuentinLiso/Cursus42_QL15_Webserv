@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/05 17:26:18 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/14 16:06:01 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 09:51:22 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,7 +23,7 @@ std::map<TStr, std::set<TStr> >	CgiInterpreterMap::createMap(void)
 	map["/usr/bin/php"].insert(".php");
 	map["/usr/bin/perl"].insert(".pl");
 	map["/usr/bin/perl"].insert(".cgi");
-	map["/home/qliso/Documents/Webserv_github/ubuntu_cgi_tester"].insert(".bla");
+	map["/home/qliso/Documents/Webserv_github/tester42/ubuntu_cgi_tester"].insert(".bla");
 	return (map);
 }
 

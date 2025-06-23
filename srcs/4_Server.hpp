@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/01 12:02:42 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/21 11:20:17 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 09:44:22 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,6 +33,9 @@ class	Server
 			int		_fd;
 			void*	_data;
 			FdType::Type	_fdType;
+
+			FdContext();
+			~FdContext();
 		};
 		
 		FdContext*				_fdContexts[MAX_FD];

@@ -6,13 +6,17 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/01 12:02:45 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/22 22:21:08 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 09:48:57 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "4_Server.hpp"
 
 // Constructor & destructor
+Server::FdContext::FdContext(void) {}
+
+Server::FdContext::~FdContext(void) {}
+
 
 Server::Server(void)
         :   _epollfd(-1),

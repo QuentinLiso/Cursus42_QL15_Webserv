@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:18 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/22 23:48:17 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 10:25:42 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -175,8 +175,8 @@ HttpRequest::RequestState	HttpRequest::prepareParsingHttpRequestBody(size_t maxB
 	_requestBodyParsingFd = open(_requestBodyParsingFilepath.c_str(), O_RDWR | O_CREAT | O_TRUNC, 0600);
 	if (_requestBodyParsingFd < 0)
 		return (error(500, "Couldn't open file to store request body", PARSING_BODY_INVALID));
-
-	return (PARSING_BODY_FROM_BUFFER);		
+	Console::log(Console::INFO, "[SERVER] Opening file " + _requestBodyParsingFilepath + " on FD " + convToStr(_requestBodyParsingFd) + " to store request body");
+	return (PARSING_BODY_FROM_BUFFER);	
 	// At the end, we are sure that :
 	// - Content Length announced is less that max body size (for content-lengh)
 	// - Buffer has less or equal bytes than Content-Length (for content-length)
@@ -410,6 +410,7 @@ HttpRequest::RequestState	HttpRequest::error(unsigned short httpRequestStatusCod
 	_httpRequestData.setHttpStatusCode(httpRequestStatusCode);
 	if (requestState == PARSING_BODY_INVALID)
 	{
+		Console::log(Console::INFO, "[SERVER] Closing file " + _requestBodyParsingFilepath + " on FD " + convToStr(_requestBodyParsingFd) + " storing request body");
 		close (_requestBodyParsingFd);
 		// unlink(_requestBodyParsingFilepath.c_str());
 	}
@@ -457,18 +458,38 @@ HttpRequest::RequestState	HttpRequest::prepareParseHttpBody(const LocationConfig
 			return (PARSING_BODY_INVALID);
 		
 		_requestState = parseHttpBodyFromRequestBuffer(putStaticRequest);
+		if (_requestState == PARSING_BODY_DONE)
+		{
+			Console::log(Console::INFO, "[SERVER] Closing file " + _requestBodyParsingFilepath + " on FD " + convToStr(_requestBodyParsingFd) + " storing request body");
+			close (_requestBodyParsingFd);
+		}
 		return (_requestState);
 	}
-
 	return (PARSING_BODY_DONE);
 }
 
 HttpRequest::RequestState	HttpRequest::parseHttpBody(char recvBuffer[], size_t bytesReceived)
 {
 	if (_requestBodyType == REQUEST_BODY_CONTENT_LENGTH)
-		return (parseContentLengthBody(recvBuffer, bytesReceived));
+	{
+		_requestState = parseContentLengthBody(recvBuffer, bytesReceived);
+		if (_requestState == PARSING_BODY_DONE)
+		{
+			Console::log(Console::INFO, "[SERVER] Closing file " + _requestBodyParsingFilepath + " on FD " + convToStr(_requestBodyParsingFd) + " storing request body");
+			close (_requestBodyParsingFd);
+		}
+		return (_requestState);
+	}
 	else
-		return (parseChunkedBody(recvBuffer, bytesReceived));
+	{
+		_requestState = parseChunkedBody(recvBuffer, bytesReceived);
+		if (_requestState == PARSING_BODY_DONE)
+		{
+			Console::log(Console::INFO, "[SERVER] Closing file " + _requestBodyParsingFilepath + " on FD " + convToStr(_requestBodyParsingFd) + " storing request body");
+			close (_requestBodyParsingFd);
+		}
+		return (_requestState);
+	}
 }
 
 

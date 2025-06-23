@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:09 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/23 08:39:09 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 10:46:37 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -267,7 +267,8 @@ void	ClientConnection::handleCgiReady(int events, int fd, FdType::Type fdType)
 		if (_cgiHandler.writeToCgiInputPipe())
 		{
 			std::cout << "Bytes written to CGI input pipe : " << _cgiHandler.getActualBytesWrittenToCgiInput() << std::endl;
-			close(_cgiHandler.getInputPipeWrite());
+			// close(_cgiHandler.getInputPipeWrite());
+			_server.deregisterFdFromEpoll(_cgiHandler.getInputPipeWrite(), FdType::FD_CGI_PIPE);
 		}
 	}
 
@@ -294,18 +295,26 @@ void	ClientConnection::handleCgiReady(int events, int fd, FdType::Type fdType)
 void	ClientConnection::handleCgiFinished(void)
 {
 	_cgiHandler.flushBuffer();
-	close(_cgiHandler.getOutputPipeRead());
+	// close(_cgiHandler.getOutputPipeRead());
+	_server.deregisterFdFromEpoll(_cgiHandler.getOutputPipeRead(), FdType::FD_CGI_PIPE);
+
 	close(_cgiHandler.getRequestBodyInputFd());
 	close(_cgiHandler.getCgiCompleteOutputFd());
+	
 	std::cout << "Bytes read from CGI output pipe : " << _cgiHandler.getActualBytesReadFromCgiOutput() << std::endl;
 	_httpResponse.setCgiResponse(_cgiHandler.getCgiStatusCode(), _cgiHandler.getCgiCompleteOutputFilename(), _cgiHandler.getActualBytesReadFromCgiOutput(), _cgiHandler.getCgiOutputHeaders(), _httpResolution.getLocationConfig());
 	_clientConnectionState = STATE_READY_TO_SEND;
 	_needEpollToProgress = false;
 }
 
+int	ClientConnection::i = 0;
 
 void	ClientConnection::handleReadyToSend(void)
 {
+	std::ostringstream oss;
+	oss << "/home/qliso/Documents/Webserv_github/html/tmp/bytes_sent_tmp_" << i++;
+	testsendfd = open(oss.str().c_str(), O_CREAT | O_TRUNC | O_RDWR, 0600);
+	
 	_sendBuffer = _httpResponse.headersToString();
 	std::cout 	<< "********* RESPONSE headers *******\n"
 				<< _sendBuffer
@@ -314,6 +323,8 @@ void	ClientConnection::handleReadyToSend(void)
 				<< "\nBody byte size : " << _httpResponse.getBodyLength()
 				<< "\nExpected bytes to send : " << _httpResponse.getHeadersLength() + _httpResponse.getBodyLength() 
 				<< std::endl;
+	
+
 	
 	if (_httpResponse.getResponseBodyType() == HttpResponse::BODY_STRING)
 	{
@@ -343,6 +354,7 @@ void	ClientConnection::handleSendingStr(int events, FdType::Type fdType)
 			}
 			else if (bytesSent == 0)
 				break ;
+			write(testsendfd, _sendBuffer.c_str(), bytesSent);
 			_sendBuffer.erase(0, bytesSent);
 			_actualBytesSent += bytesSent;
 		}
@@ -355,6 +367,8 @@ void	ClientConnection::handleSendingStr(int events, FdType::Type fdType)
 		_needEpollToProgress = false;
 	}
 }
+
+
 
 void	ClientConnection::handleSendingFd(int events, FdType::Type fdType)
 {
@@ -375,6 +389,7 @@ void	ClientConnection::handleSendingFd(int events, FdType::Type fdType)
 			{
 				break ;
 			}
+			write(testsendfd, _sendBuffer.c_str(), bytesSent);
 			_sendBuffer.erase(0, bytesSent);		// buffer empty or not we don't know yet
 			_actualBytesSent += bytesSent;
 			if (!_sendBuffer.empty())
@@ -455,7 +470,7 @@ bool							ClientConnection::needEpollEventToProgress(void) const { return _need
 const CgiHandler&				ClientConnection::getCgiHandler(void) const { return _cgiHandler; }
 
 
-void	ClientConnection::setClientConnectionSendingResponse(void) { _clientConnectionState = STATE_SENDING_RESPONSE; }
+// void	ClientConnection::setClientConnectionSendingResponse(void) { _clientConnectionState = STATE_SENDING_RESPONSE; }
 
-void	ClientConnection::setClientConnectionCgiReady(void) { _clientConnectionState = STATE_CGI_READY; }
+// void	ClientConnection::setClientConnectionCgiReady(void) { _clientConnectionState = STATE_CGI_READY; }
 

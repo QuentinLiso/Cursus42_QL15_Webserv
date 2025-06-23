@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:03 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/23 08:15:54 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 10:34:55 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -111,6 +111,9 @@ class ClientConnection
 		void	handleCgiReady(int events, int fd, FdType::Type fdType);
 		void	handleCgiFinished(void);
 		
+		static int i;
+		int	testsendfd;
+
 		void	handleReadyToSend(void);
 		void	handleSendingStr(int events, FdType::Type fdType);
 		void	handleSendingFd(int events, FdType::Type fdType);
@@ -128,23 +131,10 @@ class ClientConnection
 		const CgiHandler& 	getCgiHandler(void) const;
 		bool				needEpollEventToProgress(void) const;
 		
-		void	setClientConnectionSendingResponse(void);
-		void	setClientConnectionCgiReady(void);
+		// void	setClientConnectionSendingResponse(void);
+		// void	setClientConnectionCgiReady(void);
 
-	// // old
-	// 	ReadStatus	readFromFd(void);
-	// 	WriteStatus	sendToFd(void);
-	// 	// 3 - Preparing response
-	// 	HttpResponse::Status	prepareResponseFromRequestHeadersComplete(void);
-	// 	ReadStatus				prepareResponseFromRequestBodyComplete(void);
-	// 	ReadStatus				prepareResponseInvalidHeadersRequest(unsigned short code, ReadStatus readStatus);
-	// 	ReadStatus				prepareResponseInvalidBodyRequest(unsigned short code, ReadStatus readStatus);
-	// 	// 4 - Sending response
-	// 	void	sendResponseHeader(void);
-	// 	void	sendResponseBody(void);
-	// 	void	sendResponseBodyFd(int bodyfd);
-	// 	void	sendResponseBodyStr(const TStr& bodystr);
-
+	
 };
 
 
