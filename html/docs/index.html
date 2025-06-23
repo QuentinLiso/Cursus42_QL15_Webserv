@@ -1,4 +1,42 @@
-<h1>Here is my Website</h1>
-<h1>This is another header</h1>
-<h1>Ca marcheeeeeeeee</h1>
-<a href="../downloads/Tobi.pdf">Telecharger certificat de Tobi</a>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Webserv Test Index</title>
+	<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+	<h1>🌐 Welcome to Webserv</h1>
+
+	<h2>📄 Static file (GET)</h2>
+	<p><a href="/credentials.html">/docs/credentials.html</a></p>
+
+	<h2>📄 Static forbidden file (GET)</h2>
+	<p><a href="/forbidden.txt">/docs/forbidden.txt</a></p>
+
+	<h2>⚙️ CGI script (GET)</h2>
+	<p><a href="/scripts/getscript.py">/scripts/print_env.py</a></p>
+
+	<h2>📝 POST Form</h2>
+	<form action="/scripts/postscript.py" method="POST">
+		<label for="message">Message:</label>
+		<input type="text" name="message" id="message" required>
+		<button type="submit">Send POST</button>
+	</form>
+
+	<h2>📤 PUT File Upload</h2>
+	<div class="upload-box">
+		<input type="file" id="putFile">
+		<button onclick="uploadFile()">Upload via PUT</button>
+	</div>
+
+	<h2>🗑️ Uploaded Files (Delete)</h2>
+	<ul id="fileList"></ul>
+	<p id="status"></p>
+
+	<h2>📁 Autoindex Test</h2>
+	<p><a href="/images/">/images/</a></p>
+
+	<script src="/script.js"></script>
+</body>
+</html>

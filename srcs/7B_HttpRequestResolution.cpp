@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:18 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/23 12:45:34 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 15:53:01 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -148,7 +148,10 @@ HttpRequestResolution::ResolutionState	HttpRequestResolution::handleGetHeadDirec
 	}
 
 	if (_locationConfig->getAutoindex().isActive())	// Check autoindex
+	{
+		_httpResolutionStatusCode = 200;
 		return (RESOLUTION_VALID_GET_HEAD_AUTOINDEX);
+	}
 	
 	return (error(404, "Requested GET directory has no valid index nor autoindex", RESOLUTION_INVALID));
 	
@@ -278,7 +281,7 @@ HttpRequestResolution::ResolutionState	HttpRequestResolution::isPostRequestValid
 			if (!isCgiUri)		// Existing non-cgi URI 
 				return (error(405, "POST request targets a non-cgi file", RESOLUTION_INVALID));
 
-			if (access(_resolvedPath.c_str(), X_OK) != 0) // File not writeable
+			if (access(_resolvedPath.c_str(), X_OK) != 0) // File not executable
 				return (error(403, "Access forbidden to POST request target file", RESOLUTION_INVALID));
 		} 
 		else

@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/05 17:26:18 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/23 09:51:22 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 15:47:02 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,8 +18,8 @@ std::set<TStr>				CgiInterpreterMap::_extensions = CgiInterpreterMap::createExte
 std::map<TStr, std::set<TStr> >	CgiInterpreterMap::createMap(void)
 {
 	std::map<TStr, std::set<TStr> >	map;
-	map["/usr/bin/python"].insert(".py");
-	map["/usr/bin/python"].insert(".cgi");
+	map["/usr/bin/python3"].insert(".py");
+	map["/usr/bin/python3"].insert(".cgi");
 	map["/usr/bin/php"].insert(".php");
 	map["/usr/bin/perl"].insert(".pl");
 	map["/usr/bin/perl"].insert(".cgi");

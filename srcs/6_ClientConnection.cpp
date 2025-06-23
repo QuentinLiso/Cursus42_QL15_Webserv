@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:09 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/23 12:44:28 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 16:50:31 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -443,11 +443,12 @@ void	ClientConnection::handleClosingConnection(void)
 		_sendFd = -1;
 	}
 	
-	// if (LOG_BYTES_SENT)
-	// {
-	// 	Console::log(Console::DEBUG, "[SERVER] Closing BytesSentLogfile" + _logBytesSentFilename + " opened on FD" + convToStr(_logBytesSentFd));
-	// 	close(_logBytesSentFd);
-	// }
+	if (LOG_BYTES_SENT)
+	{
+		Console::log(Console::DEBUG, "[SERVER] Closing BytesSentLogfile" + _logBytesSentFilename + " opened on FD" + convToStr(_logBytesSentFd));
+		if (_logBytesSentFd > 0)
+			close(_logBytesSentFd);
+	}
 	
 	// if (DISCARD_TMP)
 	// {

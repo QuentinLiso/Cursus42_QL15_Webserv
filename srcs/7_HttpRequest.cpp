@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:18 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/23 11:23:27 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 16:16:33 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -150,12 +150,11 @@ HttpRequest::RequestState	HttpRequest::setResponseBodyType(void)
 HttpRequest::RequestState	HttpRequest::prepareParsingHttpRequestBody(size_t maxBodySize, bool putStaticRequest, const TStr& resolvedPath)
 {
 	_maxBodySize = maxBodySize;
-	_maxBodySize = INT_MAX;
 	if (_httpRequestData.getContentLength() > _maxBodySize)		// Content-Length announced is greater that max body size -> error
-		return (error(413, "Content Length of the body sent by client is greater that max body size", PARSING_BODY_DONE));
+		return (error(413, "Content Length of the body sent by client is greater that max body size", PARSING_BODY_INVALID));
 	
  	if (_requestBuffer.size() > _maxBodySize)	// Buffer already larger than max body size or Content-Length (i.e client sent more bytes that announced)
-		return (error(413, "Content Length of the body sent by client is greater that max body size", PARSING_BODY_DONE));
+		return (error(413, "Content Length of the body sent by client is greater that max body size", PARSING_BODY_INVALID));
 
  	// if (_requestBuffer.size() > _httpRequestData.getContentLength())	// Buffer already larger than max body size or Content-Length (i.e client sent more bytes that announced)
 	// 	return (error(413, "Content Length of the body sent by client is greater that max body size", PARSING_BODY_DONE));

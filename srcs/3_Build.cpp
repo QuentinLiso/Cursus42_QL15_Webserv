@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/22 08:56:11 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/21 18:28:49 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 16:06:31 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -819,8 +819,6 @@ int	ErrorPage::checkValidUri(const TStr& uri)
 	{
 		if (containsDoubleDotsAccess(uri))
 			return (error("URI '" + uri + "' cannot contain double dots access in error_pages directive"));
-		// if (!isExistingAndAccessibleFile(uri, R_OK))
-		// 	return (error("URI '" + uri + "' is not an existing read-only accessible file"));
 		return (0);
 	}
 	return(error("Invalid URI '" + uri + "' in error_pages directive"));

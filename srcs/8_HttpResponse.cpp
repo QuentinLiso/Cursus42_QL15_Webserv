@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/04 09:23:08 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/23 08:26:12 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 16:04:04 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -166,6 +166,9 @@ void	HttpResponse::setContentTypeHeader(const TStr& filename)
 
 void	HttpResponse::setDefaultErrorPage(int responseStatusCode, ErrorOrigin errorOrigin)
 {
+	_responseStatusCode = responseStatusCode;
+    _reasonPhrase = getStatusCodeReason(responseStatusCode);
+	
     std::ostringstream html;
     html << "<!DOCTYPE html>\n"
          << "<html lang=\"en\">\n"
@@ -207,8 +210,9 @@ void	HttpResponse::setDefaultErrorPage(int responseStatusCode, ErrorOrigin error
 
 void	HttpResponse::setCustomErrorPage(int responseStatusCode, const LocationConfig* locationConfig, ErrorOrigin errorOrigin)
 {
+	Console::log(Console::WARNING, "Looking for custom error page " + convToStr(responseStatusCode));
 	const std::map<ushort, TStr>& customErrorPages = locationConfig->getErrorPage().getErrorPages();
-	std::map<ushort, TStr>::const_iterator it = customErrorPages.find(_responseStatusCode);
+	std::map<ushort, TStr>::const_iterator it = customErrorPages.find(responseStatusCode);
 	
 	if (it == customErrorPages.end())
 		return (setDefaultErrorPage(responseStatusCode, errorOrigin));

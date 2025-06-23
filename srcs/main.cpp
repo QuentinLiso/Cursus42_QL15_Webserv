@@ -36,7 +36,7 @@ int main(int ac, char **av)
 	{
 		Builder builder;
 		MakeConfig(av[1], builder);
-		// builder.printRuntimeBuild();
+		builder.printRuntimeBuild();
 		Server	server;
 		server.makeServerReady(builder);
 		server.run();
