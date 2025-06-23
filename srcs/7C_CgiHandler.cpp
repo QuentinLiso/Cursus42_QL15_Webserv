@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/19 16:19:45 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/22 20:33:10 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 07:45:52 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,6 +28,7 @@ CgiHandler::CgiHandler(void)
 			_cgiReadFromOutputComplete(false),
 			_actualBytesReadFromCgiOutput(0),
 			_cgiHeadersEnd(false),
+			_cgiHeadersEndIndex(0),
 			_index(0)
 {
 	_inputPipeFd[0] = -1;
@@ -189,26 +190,25 @@ CgiHandler::CgiState	CgiHandler::errorSetup(int cgiStatusCode, const TStr& msg, 
 bool	CgiHandler::findHeadersEnd(void)
 {
 	size_t	limit = std::min(_cgiReadOutputBuffer.size(), 4096UL);
-	size_t	headersEnd = TStr::npos;
+	_cgiHeadersEndIndex = TStr::npos;
 	for (size_t i = 0; i + 3 < limit; i++)
 	{
 		if (_cgiReadOutputBuffer[i] == '\r' && _cgiReadOutputBuffer[i + 1] == '\n' && _cgiReadOutputBuffer[i + 2] == '\r' && _cgiReadOutputBuffer[i + 3] == '\n')
 		{
-			std::cout << "Headers end found : " << i << std::endl;
-			headersEnd = i;
+			_cgiHeadersEndIndex = i;
 			break ;
 		}
 	}
 
-	if (headersEnd != TStr::npos)
+	if (_cgiHeadersEndIndex != TStr::npos)
 	{
 		// Headers End found within the limit :) Try parsing
 		parsingOutputHeaders();
 		_cgiHeadersEnd = true;
-		_cgiReadOutputBuffer.erase(0, headersEnd + 4);
+		_cgiReadOutputBuffer.erase(0, _cgiHeadersEndIndex + 4);
 		return (true);
 	}
-	else if (headersEnd == TStr::npos && _cgiReadOutputBuffer.size() < 4096UL)
+	else if (_cgiHeadersEndIndex == TStr::npos && _cgiReadOutputBuffer.size() < 4096UL)
 	{
 		// Headers end not found but output buffer size is less than max size -> try again next round
 		return (false);
@@ -223,23 +223,24 @@ bool	CgiHandler::findHeadersEnd(void)
 
 void	CgiHandler::parsingOutputHeaders(void)
 {
-	std::cout << "Parsing output headers : " << std::endl;
-	std::cout << _cgiReadOutputBuffer.substr(0, _cgiHeadersEnd) << std::endl;
-	while (_index < _cgiHeadersEnd)
+	std::cout << "\n**** CGI output headers *****" << std::endl;
+	std::cout << _cgiReadOutputBuffer.substr(0, _cgiHeadersEndIndex) << std::endl;
+	std::cout << "*****************************\n" << std::endl;
+	while (_index < _cgiHeadersEndIndex)
 	{
 		size_t	lineEnd = _cgiReadOutputBuffer.find("\n", _index);
 		size_t	lineSize = lineEnd - _index;	// Line == "Something\n", _index = 'S' -> 0, lineEnd = '\n' -> 9, lineSize = 9
 
 		TStr	headerLine = _cgiReadOutputBuffer.substr(_index, lineEnd - _index);
-		std::cout << "Header line : " << headerLine << std::endl;
+
 		size_t	colon = headerLine.find(':');
 		if (colon == 0 || colon == TStr::npos || colon == headerLine.size() - 1)
 		{
 			_index += lineSize + 1;
 			continue ;
 		}
-		TStr	key = trimHeadAndTail(headerLine.substr(0, colon));
-		TStr	value = trimHeadAndTail(headerLine.substr(colon + 1));
+		TStr	key = trimHeadAndTailSpecific(headerLine.substr(0, colon), " \t\r\n");
+		TStr	value = trimHeadAndTailSpecific(headerLine.substr(colon + 1), "\t\r\n");
 		
 		if (key == "Status")
 		{
@@ -249,8 +250,7 @@ void	CgiHandler::parsingOutputHeaders(void)
 				status = 200;
 			_cgiStatusCode = status;
 		}
-		else
-			_cgiOutputHeaders[key] = value;
+		_cgiOutputHeaders[key] = value;
 		_index += lineSize + 1;
 	}
 }
@@ -305,7 +305,7 @@ bool	CgiHandler::readFromCgiOutputPipe(void)
 	if (!_cgiHeadersEnd)
 		findHeadersEnd();
 	
-	if (_cgiHeadersEnd)
+	if (_cgiHeadersEnd)	
 		flushBuffer();
 
 	if (bytesRead == 0)

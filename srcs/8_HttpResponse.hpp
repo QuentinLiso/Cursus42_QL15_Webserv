@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/04 09:22:48 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/21 16:47:55 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 07:58:40 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -57,10 +57,13 @@ class	HttpResponse
 		unsigned short				_responseStatusCode;
 		TStr						_reasonPhrase;
 		std::map<TStr, TStr> 		_headers;
+		size_t						_headersLength;
+		size_t						_bodyLength;
 		ResponseBodyType			_responseBodyType;
 		int							_responseBodyStaticFd;
 		TStr						_responseBodyStr;
 		ErrorOrigin					_errorOrigin;	
+
 
 
 		void	setDefaultHeaders(void);
@@ -76,15 +79,13 @@ class	HttpResponse
 		void	setPutStaticResponse(int responseStatusCode);
 		void	setCgiResponse(int responseStatusCode, const TStr& cgiOutputFilePath, int contentSize, const std::map<TStr, TStr>& cgiHeaders, const LocationConfig* locationConfig);
 
-		void	setResponseStatusCode(unsigned short responseStatusCode);
-		void	setResponseBodyType(ResponseBodyType responseBodyType);
-		void	setResponseBodyStaticFd(int fd);
-		void	setResponseBodyStr(const TStr& str);
-
-		TStr				headersToString(void) const;
+		TStr				headersToString(void);
+		size_t				getHeadersLength(void) const;
+		size_t				getBodyLength(void) const;
 		ResponseBodyType	getResponseBodyType(void) const;
 		const TStr&			getResponseBodyStr(void) const;
 		int					getResponseBodyFd(void) const;
+		int					getContentLength(void) const;
 
 		void	print(void) const;
 

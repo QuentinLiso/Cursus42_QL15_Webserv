@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:29:17 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/21 11:13:12 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 07:45:27 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,6 +25,7 @@ void	toLowerStr(TStr& str);
 TStr	createLowercaseStr(const TStr& str);
 bool	areCaseInsensitiveEquals(const TStr& a, const TStr& b);
 TStr	trimHeadAndTail(const TStr& str);
+TStr	trimHeadAndTailSpecific(const TStr& str, const TStr& chars);
 TStr	ipHostByteOrderToStr(u_int32_t ip);
 
 std::ostream& operator<<(std::ostream& o, const TStrVect& vect);

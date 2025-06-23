@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:29:17 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/21 11:26:53 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 07:45:03 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -113,6 +113,19 @@ TStr	trimHeadAndTail(const TStr& str)
 		return (TStr());
 
 	size_t	end = str.find_last_not_of(" \t");
+	return (str.substr(start, end - start + 1));
+}
+
+TStr	trimHeadAndTailSpecific(const TStr& str, const TStr& chars)
+{
+	if (str.empty())
+		return (TStr());
+
+	size_t	start = str.find_first_not_of(chars);
+	if (start == TStr::npos)	// No character that is not a whitespace was found - i.e only whitespaces
+		return (TStr());
+
+	size_t	end = str.find_last_not_of(chars);
 	return (str.substr(start, end - start + 1));
 }
 

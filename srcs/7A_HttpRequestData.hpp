@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:15 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/21 18:01:32 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/22 23:33:09 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -86,6 +86,7 @@ class	HttpRequestData
 		TStr					_referer;
 		ContentEncodingType		_contentEncoding;
 		TransferEncodingType 	_transferEncoding;
+		std::map<TStr, TStr>	_other;
 		TStr					_body;
 
 		// Request line

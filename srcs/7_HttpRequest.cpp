@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:18 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/22 18:41:57 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/22 23:48:17 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -434,13 +434,13 @@ HttpRequest::RequestState	HttpRequest::parseHttpRequest(char recvBuffer[], size_
 			_requestState = parseHeaders();
 			if (_requestState == PARSING_HEADERS_INVALID)	return (_requestState);
 
-			std::cout << _requestBuffer << std::endl;
+			std::cout << "*** REQUEST HEADERS ***\n" << _requestBuffer.substr(0, _headersEndIndex + 4) << "********************" << std::endl;
 			_requestBuffer.erase(0, _headersEndIndex + 4);
 			_index = 0;
-			std::cout << _requestBuffer << std::endl;
 
 			_requestState = setResponseBodyType();
 			if (_requestState == PARSING_HEADERS_INVALID)	return (_requestState);
+
 			
 			return (PARSING_HEADERS_DONE);
 		

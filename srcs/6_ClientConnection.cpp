@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:09 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/22 22:58:44 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 08:39:09 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,11 +30,7 @@ ClientConnection::ClientConnection(Server& server, int fd, const ListeningSocket
 			_sendFd(-1),
 			_actualBytesSent(0),
 			_sendFdClear(false)
-{
-	std::ostringstream oss;
-	oss << "/home/qliso/Documents/Webserv_github/html/tmp/recv_tmp_" << ClientConnection::filenum++;
-	logfile.open(oss.str().c_str(), std::ios::out | std::ios::binary);
-}
+{}
 
 ClientConnection::~ClientConnection(void)
 {
@@ -46,7 +42,6 @@ ClientConnection::~ClientConnection(void)
 // Private
 void	ClientConnection::handleReadingHeaders(void)
 {
-	Console::log(Console::DEBUG, "Handle reading headers");
 	char	recvBuffer[8192];
 	
 	ssize_t	bytesRead = recv(_fd, recvBuffer, sizeof(recvBuffer), MSG_DONTWAIT);
@@ -124,6 +119,7 @@ void	ClientConnection::handleValidGetHeadStatic(void)
 
 void	ClientConnection::handleValidGetHeadCgi(void)
 {
+	Console::log(Console::DEBUG, "Valid GET HEAD cgi");
 	_clientConnectionState = STATE_CGI_PREPARE;
 	_cgiHandler.setOutOnly(true);
 	_needEpollToProgress = false;
@@ -131,25 +127,26 @@ void	ClientConnection::handleValidGetHeadCgi(void)
 
 void	ClientConnection::handleValidGetHeadAutoindex(void)
 {
+	Console::log(Console::DEBUG, "Valid GET HEAD autoindex");
 	_httpResponse.setGetHeadAutoindexResponse(	_httpResolution.getHttpResolutionStatusCode(),
 												_httpResolution.getResolvedPath(),
 												_httpResolution.getLocationConfig(),
 												_httpRequest.getHttpRequestData().getMethod());
 	_clientConnectionState = STATE_READY_TO_SEND;
-	// _server.registerSingleFdToEpoll(_fd, EPOLLOUT, EPOLL_CTL_MOD, FdType::FD_CLIENT_CONNECTION);
 	_needEpollToProgress = false;
 }
 
 void	ClientConnection::handleValidDelete(void)
 {
+	Console::log(Console::DEBUG, "Valid DELETE");
 	_httpResponse.setDeleteResponse(_httpResolution.getHttpResolutionStatusCode());
 	_clientConnectionState = STATE_READY_TO_SEND;
-	// _server.registerSingleFdToEpoll(_fd, EPOLLOUT, EPOLL_CTL_MOD, FdType::FD_CLIENT_CONNECTION);
 	_needEpollToProgress = false;
 }
 
 void	ClientConnection::handleValidPostPut(void)
 {
+	Console::log(Console::DEBUG, "Valid POST PUT");
 	_clientConnectionState = STATE_PREPARE_READING_BODY;
 	_cgiHandler.setOutOnly(false);
 	_needEpollToProgress = false;
@@ -157,9 +154,9 @@ void	ClientConnection::handleValidPostPut(void)
 
 void	ClientConnection::handleInvalidRequest(void)
 {
+	Console::log(Console::DEBUG, "Invalid request");
 	_httpResponse.setCustomErrorPage(_httpResolution.getHttpResolutionStatusCode(), _httpResolution.getLocationConfig(), HttpResponse::ERROR_REQUEST_RESOLUTION);
 	_clientConnectionState = STATE_READY_TO_SEND;
-	// _server.registerSingleFdToEpoll(_fd, EPOLLOUT, EPOLL_CTL_MOD, FdType::FD_CLIENT_CONNECTION);
 	_needEpollToProgress = false;
 }
 
@@ -189,7 +186,6 @@ void	ClientConnection::handleParsingBodyDone(void)
 	{
 		_httpResponse.setPutStaticResponse(_httpResolution.getHttpResolutionStatusCode());
 		_clientConnectionState = STATE_READY_TO_SEND;
-		// _server.registerSingleFdToEpoll(_fd, EPOLLOUT, EPOLL_CTL_MOD, FdType::FD_CLIENT_CONNECTION);
 		_needEpollToProgress = false;
 	}
 	else
@@ -203,13 +199,11 @@ void	ClientConnection::handleReadingBodyInvalid(void)
 {
 	_httpResponse.setCustomErrorPage(_httpRequest.getHttpRequestData().getHttpRequestDataStatusCode(), _httpResolution.getLocationConfig(), HttpResponse::ERROR_BODY_READING);
 	_clientConnectionState = STATE_READY_TO_SEND;
-	// _server.registerSingleFdToEpoll(_fd, EPOLLOUT, EPOLL_CTL_MOD, FdType::FD_CLIENT_CONNECTION);
 	_needEpollToProgress = false;
 }
 
 void	ClientConnection::handleReadingBody(void)
 {
-	// Console::log(Console::DEBUG, "Handle reading body");
 	char	recvBuffer[32 * 1024];
 	
 	ssize_t	bytesRead = recv(_fd, recvBuffer, sizeof(recvBuffer), MSG_DONTWAIT);
@@ -260,10 +254,8 @@ void	ClientConnection::handleCgiPrepareValid(void)
 
 void	ClientConnection::handleCgiPrepareError(void)
 {
-	Console::log(Console::DEBUG, "Hello from CGI prepare error lol");
 	_httpResponse.setCustomErrorPage(500, _httpResolution.getLocationConfig(), HttpResponse::ERROR_REQUEST_RESOLUTION);
 	_clientConnectionState = STATE_READY_TO_SEND;
-	// _server.registerSingleFdToEpoll(_fd, EPOLLOUT, EPOLL_CTL_MOD, FdType::FD_CLIENT_CONNECTION);
 	_needEpollToProgress = false;
 }
 
@@ -274,7 +266,7 @@ void	ClientConnection::handleCgiReady(int events, int fd, FdType::Type fdType)
 	{
 		if (_cgiHandler.writeToCgiInputPipe())
 		{
-			std::cout << "Writing to cgi input pipe was true : " << _cgiHandler.getActualBytesWrittenToCgiInput() << std::endl;
+			std::cout << "Bytes written to CGI input pipe : " << _cgiHandler.getActualBytesWrittenToCgiInput() << std::endl;
 			close(_cgiHandler.getInputPipeWrite());
 		}
 	}
@@ -283,20 +275,17 @@ void	ClientConnection::handleCgiReady(int events, int fd, FdType::Type fdType)
 	{
 		if(_cgiHandler.readFromCgiOutputPipe())
 		{
-			std::cout << "Reading from cgi output pipe was true" << std::endl;
+			;
 		}
 	}
 
 	if ((events & EPOLLHUP) && fdType == FdType::FD_CGI_PIPE)
 	{
-		std::cout << "[DEBUG] EPOLLHUP detected on CGI pipe" << std::endl;
-
 		int status;
 		pid_t result = waitpid(_cgiHandler.getCgiPid(), &status, WNOHANG);
 		if (result == _cgiHandler.getCgiPid()) {
 			_needEpollToProgress = false;
 			_clientConnectionState = STATE_CGI_FINISHED;
-			std::cout << "[INFO] CGI process exited, moving to finished state." << std::endl;
 		}
 	}
 
@@ -304,10 +293,11 @@ void	ClientConnection::handleCgiReady(int events, int fd, FdType::Type fdType)
 
 void	ClientConnection::handleCgiFinished(void)
 {
-	std::cout << "Called" << std::endl;
 	_cgiHandler.flushBuffer();
-	std::cout << "Reading from cgi output pipe was true : " << _cgiHandler.getActualBytesReadFromCgiOutput() << std::endl;
 	close(_cgiHandler.getOutputPipeRead());
+	close(_cgiHandler.getRequestBodyInputFd());
+	close(_cgiHandler.getCgiCompleteOutputFd());
+	std::cout << "Bytes read from CGI output pipe : " << _cgiHandler.getActualBytesReadFromCgiOutput() << std::endl;
 	_httpResponse.setCgiResponse(_cgiHandler.getCgiStatusCode(), _cgiHandler.getCgiCompleteOutputFilename(), _cgiHandler.getActualBytesReadFromCgiOutput(), _cgiHandler.getCgiOutputHeaders(), _httpResolution.getLocationConfig());
 	_clientConnectionState = STATE_READY_TO_SEND;
 	_needEpollToProgress = false;
@@ -317,6 +307,14 @@ void	ClientConnection::handleCgiFinished(void)
 void	ClientConnection::handleReadyToSend(void)
 {
 	_sendBuffer = _httpResponse.headersToString();
+	std::cout 	<< "********* RESPONSE headers *******\n"
+				<< _sendBuffer
+				<< "\n**********************************\n"
+				<< "\nHeaders byte size : " << _httpResponse.getHeadersLength()
+				<< "\nBody byte size : " << _httpResponse.getBodyLength()
+				<< "\nExpected bytes to send : " << _httpResponse.getHeadersLength() + _httpResponse.getBodyLength() 
+				<< std::endl;
+	
 	if (_httpResponse.getResponseBodyType() == HttpResponse::BODY_STRING)
 	{
 		_sendBuffer += _httpResponse.getResponseBodyStr();
@@ -348,15 +346,13 @@ void	ClientConnection::handleSendingStr(int events, FdType::Type fdType)
 			_sendBuffer.erase(0, bytesSent);
 			_actualBytesSent += bytesSent;
 		}
-		close (_fd);
 		_clientConnectionState = STATE_CLOSING_CONNECTION;
-		_needEpollToProgress = true;
+		_needEpollToProgress = false;
 	}
 	if ((events & EPOLLHUP) && fdType == FdType::FD_CLIENT_CONNECTION)
 	{
-		close (_fd);
 		_clientConnectionState = STATE_CLOSING_CONNECTION;
-		_needEpollToProgress = true;
+		_needEpollToProgress = false;
 	}
 }
 
@@ -372,8 +368,7 @@ void	ClientConnection::handleSendingFd(int events, FdType::Type fdType)
 				Console::log(Console::ERROR, strerror(errno));
 				close (_fd);
 				_clientConnectionState = STATE_CLOSING_CONNECTION;
-				_needEpollToProgress = true;
-				std::cout << "Total bytes sent 1 : " << _actualBytesSent << std::endl;
+				_needEpollToProgress = false;
 				return ;
 			}
 			else if (bytesSent == 0)
@@ -384,7 +379,6 @@ void	ClientConnection::handleSendingFd(int events, FdType::Type fdType)
 			_actualBytesSent += bytesSent;
 			if (!_sendBuffer.empty())
 			{
-				std::cout << "Total bytes sent 2 : " << _actualBytesSent << std::endl;
 				return ;
 			}
 		}
@@ -396,12 +390,10 @@ void	ClientConnection::handleSendingFd(int events, FdType::Type fdType)
 			if (bytesRead < 0)
 			{
 				Console::log(Console::ERROR, strerror(errno));
-				std::cout << "Total bytes sent 3 bytes read < 0 while reading fd : " << _actualBytesSent << std::endl;
 			}
 			else if (bytesRead == 0)
 			{
 				_sendFdClear = true;
-				close(_sendFd);
 			}
 			else
 			{
@@ -411,19 +403,27 @@ void	ClientConnection::handleSendingFd(int events, FdType::Type fdType)
 
 		if (_sendFdClear && _sendBuffer.empty())
 		{
-			std::cout << "Total bytes sent 4 : " << _actualBytesSent << std::endl;
-			close (_fd);
 			_clientConnectionState = STATE_CLOSING_CONNECTION;
-			_needEpollToProgress = true;
+			_needEpollToProgress = false;
 		}
 
 	}
 	if ((events & EPOLLHUP) && fdType == FdType::FD_CLIENT_CONNECTION)
-	{
-		std::cout << "Total bytes sent 5 : " << _actualBytesSent << std::endl;
-		close (_fd);
+	{	
 		_clientConnectionState = STATE_CLOSING_CONNECTION;
-		_needEpollToProgress = true;
+		_needEpollToProgress = false;
+	}
+}
+
+void	ClientConnection::handleClosingConnection(void)
+{
+	std::cout 	<< "Total bytes sent : " << _actualBytesSent << "\n**********************************\n" << std::endl;
+	_needEpollToProgress = true;
+	if (_sendFd != -1)
+	{
+		Console::log(Console::INFO, "[SERVER] Closing file sent to client opened on FD " + convToStr(_sendFd));
+		close(_sendFd);
+		_sendFd = -1;
 	}
 }
 
@@ -444,7 +444,7 @@ void	ClientConnection::handleEvent(int events, int fd, FdType::Type fdType)
 		case STATE_CGI_PREPARE :			handleCgiPrepare(); 		break;
 		case STATE_CGI_READY :				handleCgiReady(events, fd, fdType);			break;
 		case STATE_CGI_FINISHED :			handleCgiFinished() ;	return ;
-		case STATE_CLOSING_CONNECTION: 		return;
+		case STATE_CLOSING_CONNECTION: 		handleClosingConnection();	return ;
 		default:							return;
 	}
 }
@@ -458,47 +458,4 @@ const CgiHandler&				ClientConnection::getCgiHandler(void) const { return _cgiHa
 void	ClientConnection::setClientConnectionSendingResponse(void) { _clientConnectionState = STATE_SENDING_RESPONSE; }
 
 void	ClientConnection::setClientConnectionCgiReady(void) { _clientConnectionState = STATE_CGI_READY; }
-
-
-
-// bool	ClientConnection::sendFromFdDone(void)
-// {
-// 	char	buffer[8192];
-
-// 	ssize_t	bytesSent = 0;
-// 	if (!_sendBuffer.empty())
-// 	{
-// 		_sendOffset = 0;
-// 		while (_sendOffset < _sendBuffer.size())
-// 		{
-// 			bytesSent = send(_fd, _sendBuffer.c_str() + _sendOffset, _sendBuffer.size() - _sendOffset, 0);
-// 			if (bytesSent <= 0)
-// 				return (false);
-// 			_sendOffset += bytesSent;
-// 		}
-// 		_actualBytesSent += _sendOffset;
-// 		_sendBuffer.clear();
-// 		_sendOffset = 0;
-// 	}
-
-// 	ssize_t	bytesRead = read(_sendFd, buffer, sizeof(buffer));
-// 	if (bytesRead < 0)
-// 		return (false);
-// 	else if (bytesRead == 0)
-// 		return (true);
-
-// 	size_t	totalBytesSent = 0;
-// 	while (totalBytesSent < static_cast<size_t>(bytesRead))
-// 	{
-// 		bytesSent = send(_fd, buffer + totalBytesSent, bytesRead - totalBytesSent, 0);
-// 		if (bytesSent <= 0)
-// 		{
-// 			_sendBuffer.append(buffer, totalBytesSent, bytesRead - totalBytesSent);
-// 			return (false);
-// 		}
-// 		totalBytesSent += bytesSent;
-// 	}
-// 	_actualBytesSent += totalBytesSent;
-// 	return (false);
-// }
 

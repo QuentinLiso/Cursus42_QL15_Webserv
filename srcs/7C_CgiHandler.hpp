@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/19 16:19:43 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/22 18:32:36 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 00:26:05 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -76,6 +76,7 @@ class	CgiHandler
 		size_t		_actualBytesReadFromCgiOutput;
 
 		bool					_cgiHeadersEnd;
+		size_t					_cgiHeadersEndIndex;
 		size_t					_index;
 		std::map<TStr, TStr>	_cgiOutputHeaders;
 

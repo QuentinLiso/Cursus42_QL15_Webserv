@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/04 09:23:08 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/22 22:51:24 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 08:26:12 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,6 +16,8 @@
 
 HttpResponse::HttpResponse(void) 
 	: 	_responseStatusCode(100), 
+		_headersLength(0),
+		_bodyLength(0),
 		_responseBodyType(BODY_NONE), 
 		_responseBodyStaticFd(-1),
 		_errorOrigin(ERROR_NONE)
@@ -152,6 +154,7 @@ void	HttpResponse::setDefaultHeaders(void)
 void	HttpResponse::setContentLengthHeader(int contentLength)
 { 
 	_headers["Content-Length"] = convToStr(contentLength); 
+	_bodyLength = contentLength;
 }
 
 void	HttpResponse::setContentTypeHeader(const TStr& filename)
@@ -230,7 +233,7 @@ void	HttpResponse::setCustomErrorPage(int responseStatusCode, const LocationConf
 	_responseBodyStaticFd = open(filepath.c_str(), O_RDONLY);
 	if (_responseBodyStaticFd < 0)
 		return (setDefaultErrorPage(responseStatusCode, errorOrigin));
-
+	Console::log(Console::INFO, "[SERVER] Preparing to send file " + filepath + " opened on FD " + convToStr(_responseBodyStaticFd) + " to client");
 	_responseStatusCode = responseStatusCode;
 	_reasonPhrase = getStatusCodeReason(responseStatusCode);
 	_responseBodyType = BODY_FILE_DESCRIPTOR;
@@ -247,7 +250,7 @@ void	HttpResponse::setGetHeadStaticResponse(int responseStatusCode, const TStr& 
 		_responseBodyStaticFd = open(resolvedPath.c_str(), O_RDONLY);
 		if (_responseBodyStaticFd < 0)
 			return (setCustomErrorPage(500, locationConfig, ERROR_RESPONSE_BUILDING));
-		Console::log(Console::INFO, "[SERVER] Sending file " + resolvedPath + " opened on FD " + convToStr(_responseBodyStaticFd) + " to client");
+		Console::log(Console::INFO, "[SERVER] Preparing to send file " + resolvedPath + " opened on FD " + convToStr(_responseBodyStaticFd) + " to client");
 		_responseBodyType = BODY_FILE_DESCRIPTOR;
 	}
 	else
@@ -371,7 +374,7 @@ void	HttpResponse::setCgiResponse(int responseStatusCode, const TStr& cgiOutputF
 }
 
 
-TStr HttpResponse::headersToString() const
+TStr HttpResponse::headersToString()
 {
     std::ostringstream response;
 	
@@ -383,9 +386,12 @@ TStr HttpResponse::headersToString() const
         response << it->first << ": " << it->second << "\r\n";
     }
     response << "\r\n";
-    return response.str();
+	_headersLength = response.str().size();
+    return (response.str());
 }
 
 HttpResponse::ResponseBodyType	HttpResponse::getResponseBodyType(void) const { return _responseBodyType; }
 const TStr&			HttpResponse::getResponseBodyStr(void) const { return _responseBodyStr; }
 int					HttpResponse::getResponseBodyFd(void) const { return _responseBodyStaticFd; }
+size_t				HttpResponse::getHeadersLength(void) const { return _headersLength; }
+size_t				HttpResponse::getBodyLength(void) const { return _bodyLength; }

@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:03 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/22 22:06:37 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/23 08:15:54 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -114,6 +114,8 @@ class ClientConnection
 		void	handleReadyToSend(void);
 		void	handleSendingStr(int events, FdType::Type fdType);
 		void	handleSendingFd(int events, FdType::Type fdType);
+
+		void	handleClosingConnection(void);
 
 
 	public:

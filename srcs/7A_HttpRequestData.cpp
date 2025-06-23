@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:18 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/21 18:04:10 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/22 23:38:31 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -918,6 +918,7 @@ bool	HttpRequestData::setHeaderField(const TStr& headerName, const TStr& headerV
 		for (size_t i = 0; i < headerValue.size(); i++)
 			if (headerValue[i] > 126 || headerValue[i] < 32)
 				return (error(400, "Set header field, invalid char found in header value"));
+		_other[headerName] = headerValue;
 		return (true);
 	}
 	return ((this->*(it->second))(headerValue));
@@ -990,9 +991,11 @@ std::ostream&		HttpRequestData::printRequestData(std::ostream& o) const
 			// << "" << _cookies;
 			<< "Referer : " << _referer << '\n'
 			<< "Content encoding : " << _contentEncoding << '\n'
-			<< "Transfer encoding : " << _transferEncoding << '\n'
-			<< "Body : " << _body << '\n'
-			<< std::endl;
+			<< "Transfer encoding : " << _transferEncoding << '\n';
+		for (std::map<TStr, TStr>::const_iterator it = _other.begin(); it != _other.end(); it++)
+			o << it->first << " : " << it->second << '\n';
+
+		o << std::endl;
 
 	return (o);
 }
