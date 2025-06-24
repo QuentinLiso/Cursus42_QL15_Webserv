@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/19 16:19:45 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/24 12:23:18 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 12:33:57 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -105,6 +105,7 @@ CgiHandler::CgiState	CgiHandler::setupCgiInputOutput(const HttpRequest& httpRequ
 
 	else if (_pid == 0)
 	{
+		_server.deregisterFdsInForkChild();
 		close(_inputPipeFd[1]); close(_outputPipeFd[0]);
 		int retDupIn = dup2(_inputPipeFd[0], STDIN_FILENO);
 		int retDupOut = dup2(_outputPipeFd[1], STDOUT_FILENO);
@@ -332,6 +333,12 @@ bool	CgiHandler::flushBuffer(void)
 	return (true);
 }
 
+void					CgiHandler::closeStaticFilesFds(void)
+{
+	if (_requestBodyInputFd > 0)	close(_requestBodyInputFd); _requestBodyInputFd = -1;
+	if (_cgiOutputCompleteFd > 0)	close(_cgiOutputCompleteFd); _cgiOutputCompleteFd = -1;
+}
+
 CgiHandler::CgiState	CgiHandler::getCgiState(void) const { return _cgiState; }
 int						CgiHandler::getCgiStatusCode(void) const { return _cgiStatusCode; }
 bool					CgiHandler::isOutOnly(void) const { return _outOnly; }
@@ -350,3 +357,4 @@ int						CgiHandler::getCgiCompleteOutputFd(void) const { return _cgiOutputCompl
 const std::map<TStr, TStr>&	CgiHandler::getCgiOutputHeaders(void) const { return _cgiOutputHeaders; }
 bool					CgiHandler::isCgiReadFromOutputComplete(void) const { return _cgiReadFromOutputComplete; }
 size_t					CgiHandler::getActualBytesReadFromCgiOutput(void) const { return _actualBytesReadFromCgiOutput; }
+

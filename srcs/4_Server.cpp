@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/01 12:02:45 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/24 12:16:11 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 13:17:49 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -168,7 +168,7 @@ int     Server::createClientConnection(ListeningSocket* listeningSocket)
 		return (-1);
 	}
 	logIpClient((struct sockaddr_in*)&clientAddr, listeningSocket->getSockFd(), clientfd);
-	registerFdToEpoll(clientfd, EPOLLIN | EPOLLOUT | EPOLLHUP, EPOLL_CTL_ADD, new ClientConnection(*this, clientfd, listeningSocket), FdType::FD_CLIENT_CONNECTION);
+	registerFdToEpoll(clientfd, EPOLLIN | EPOLLOUT, EPOLL_CTL_ADD, new ClientConnection(*this, clientfd, listeningSocket), FdType::FD_CLIENT_CONNECTION);
     return (clientfd);
 }
 
@@ -181,6 +181,12 @@ void	Server::handleClientConnection(ClientConnection* clientConnection, int fd, 
 		deregisterFdFromEpoll(fd);
 }
 
+// write(fd, "blalba", 7);
+// send()
+
+// char buffer[4096];
+// read(fd, buffer, sizeof(buffer))
+// recv()
 
 // Logs
 void	Server::logIpClient(struct sockaddr_in* addr, int listeningSockFd, int clientfd) const

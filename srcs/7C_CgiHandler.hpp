@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/19 16:19:43 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/24 11:54:57 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 12:31:31 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -99,7 +99,7 @@ class	CgiHandler
 		bool		writeToCgiInputPipe(void);
 		bool		readFromCgiOutputPipe(void);
 		bool		flushBuffer(void);
-		
+		void		closeStaticFilesFds(void);
 		
 		CgiState	getCgiState(void) const;
 		int			getCgiStatusCode(void) const;

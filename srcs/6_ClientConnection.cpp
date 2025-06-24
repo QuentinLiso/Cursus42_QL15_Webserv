@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:09 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/24 12:25:51 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 12:32:18 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -297,9 +297,7 @@ void	ClientConnection::handleCgiFinished(void)
 {
 	_cgiHandler.flushBuffer();
 	_server.deregisterFdFromEpoll(_cgiHandler.getOutputPipeRead());
-	if (!_cgiHandler.isOutOnly())
-		close(_cgiHandler.getRequestBodyInputFd());
-	close(_cgiHandler.getCgiCompleteOutputFd());
+	_cgiHandler.closeStaticFilesFds();
 
 	std::cout << "Bytes read from CGI output pipe : " << _cgiHandler.getActualBytesReadFromCgiOutput() << std::endl;
 	_httpResponse.setCgiResponse(_cgiHandler.getCgiStatusCode(), _cgiHandler.getCgiCompleteOutputFilename(), _cgiHandler.getActualBytesReadFromCgiOutput(), _cgiHandler.getCgiOutputHeaders(), _httpResolution.getLocationConfig());
