@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:09 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/24 05:40:59 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 06:19:18 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -39,26 +39,29 @@ ClientConnection::~ClientConnection(void)
 
 
 // Private
-void	ClientConnection::handleReadingHeaders(void)
+void	ClientConnection::handleReadingHeaders(int events, int fd, FdType::Type fdType)
 {
-	char	recvBuffer[8192];
-	
-	ssize_t	bytesRead = recv(_fd, recvBuffer, sizeof(recvBuffer), MSG_DONTWAIT);
-	if (bytesRead > 0)
-	{
-		switch (_httpRequest.parseHttpRequest(recvBuffer, bytesRead))
+	if ((events & EPOLLIN) != 0 && fdType == FdType::FD_CLIENT_CONNECTION)
+	{ 
+		char	recvBuffer[8192];
+		
+		ssize_t	bytesRead = recv(_fd, recvBuffer, sizeof(recvBuffer), MSG_DONTWAIT);
+		if (bytesRead > 0)
 		{
-			case	HttpRequest::PARSING_HEADERS_NEED_DATA :	return ;
-			case	HttpRequest::PARSING_HEADERS_DONE :			handleReadingHeadersDone(); return;
-			default :											handleReadingHeadersInvalid();	return ;
+			switch (_httpRequest.parseHttpRequest(recvBuffer, bytesRead))
+			{
+				case	HttpRequest::PARSING_HEADERS_NEED_DATA :	return ;
+				case	HttpRequest::PARSING_HEADERS_DONE :			handleReadingHeadersDone(); return;
+				default :											handleReadingHeadersInvalid();	return ;
+			}
 		}
+		
+		else if (bytesRead == 0)
+			handleClientDisconnectedWhileRecv();
+		
+		else
+			handleRecvError();
 	}
-	
-	else if (bytesRead == 0)
-		handleClientDisconnectedWhileRecv();
-	
-	else
-		handleRecvError();
 }
 
 void	ClientConnection::handleReadingHeadersInvalid(void)
@@ -83,7 +86,9 @@ void	ClientConnection::handleClientDisconnectedWhileRecv(void)
 
 void	ClientConnection::handleRecvError(void)
 {
-	// Do nothing actually lol
+	Console::log(Console::WARNING, "Client disconnected before request was complete");
+	_clientConnectionState = STATE_CLOSING_CONNECTION;
+	_needEpollToProgress = true;
 }
 
 
@@ -201,28 +206,31 @@ void	ClientConnection::handleReadingBodyInvalid(void)
 	_needEpollToProgress = false;
 }
 
-void	ClientConnection::handleReadingBody(void)
+void	ClientConnection::handleReadingBody(int events, int fd, FdType::Type fdType)
 {
-	char	recvBuffer[32 * 1024];
-	
-	ssize_t	bytesRead = recv(_fd, recvBuffer, sizeof(recvBuffer), MSG_DONTWAIT);
-	if (bytesRead > 0)
+	if ((events & EPOLLIN) != 0 && fdType == FdType::FD_CLIENT_CONNECTION)
 	{
-		switch (_httpRequest.parseHttpBody(recvBuffer, bytesRead))
+		char	recvBuffer[32 * 1024];
+		
+		ssize_t	bytesRead = recv(_fd, recvBuffer, sizeof(recvBuffer), MSG_DONTWAIT);
+		if (bytesRead > 0)
 		{
-			case	HttpRequest::PARSING_BODY_CONTENT_LENGTH_NEED_DATA :
-			case	HttpRequest::PARSING_CHUNK_SIZE:
-			case	HttpRequest::PARSING_CHUNK_DATA:
-			case	HttpRequest::PARSING_CHUNK_LAST_CRLF:					return ;
-			case	HttpRequest::PARSING_BODY_DONE:							handleParsingBodyDone();	return ;
-			default	:														handleReadingBodyInvalid();	return ;
+			switch (_httpRequest.parseHttpBody(recvBuffer, bytesRead))
+			{
+				case	HttpRequest::PARSING_BODY_CONTENT_LENGTH_NEED_DATA :
+				case	HttpRequest::PARSING_CHUNK_SIZE:
+				case	HttpRequest::PARSING_CHUNK_DATA:
+				case	HttpRequest::PARSING_CHUNK_LAST_CRLF:					return ;
+				case	HttpRequest::PARSING_BODY_DONE:							handleParsingBodyDone();	return ;
+				default	:														handleReadingBodyInvalid();	return ;
+			}
 		}
-	}
-	else if (bytesRead == 0)
-		handleClientDisconnectedWhileRecv();
+		else if (bytesRead == 0)
+			handleClientDisconnectedWhileRecv();
 
-	else
-		handleRecvError();
+		else
+			handleRecvError();
+	}
 }
 
 void	ClientConnection::handleCgiPrepare(void)
@@ -464,10 +472,10 @@ void	ClientConnection::handleEvent(int events, int fd, FdType::Type fdType)
 {
 	switch(_clientConnectionState)
 	{
-		case STATE_READING_HEADERS :		if ((events & EPOLLIN) != 0) handleReadingHeaders();		break;
+		case STATE_READING_HEADERS :		handleReadingHeaders(events, fd, fdType);		break;
 		case STATE_REQUEST_RESOLUTION :		handleRequestValidation();	break;
 		case STATE_PREPARE_READING_BODY:	handlePrepareReadingBody();	break;
-		case STATE_READING_BODY :			handleReadingBody(); 		break;
+		case STATE_READING_BODY :			handleReadingBody(events, fd, fdType); 		break;
 		case STATE_READY_TO_SEND:			handleReadyToSend(); 		break;
 		case STATE_SENDING_BODY_STR :		handleSendingStr(events, fdType);			break;
 		case STATE_SENDING_BODY_FD :		handleSendingFd(events, fdType);			break;

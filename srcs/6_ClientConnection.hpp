@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:03 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/23 12:46:23 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 06:28:47 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,7 +24,7 @@
 #include "8_HttpResponse.hpp"
 
 # define DISCARD_TMP false
-# define LOG_BYTES_SENT true
+# define LOG_BYTES_SENT false
 
 class Server;
 
@@ -86,7 +86,7 @@ class ClientConnection
 		int							_logBytesSentFd;
 
 		// Events functions
-		void	handleReadingHeaders(void);
+		void	handleReadingHeaders(int events, int fd, FdType::Type fdType);
 		void	handleReadingHeadersInvalid(void);
 		void	handleReadingHeadersDone(void);
 		void	handleClientDisconnectedWhileRecv(void);
@@ -105,7 +105,7 @@ class ClientConnection
 		void	handleParsingBodyDone(void);
 		void	handleReadingBodyInvalid(void);
 
-		void	handleReadingBody(void);
+		void	handleReadingBody(int events, int fd, FdType::Type fdType);
 
 		void	handleCgiPrepare(void);
 		void	handleCgiPrepareValid(void);

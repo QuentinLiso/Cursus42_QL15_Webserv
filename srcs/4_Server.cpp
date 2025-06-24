@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/01 12:02:45 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/24 05:55:12 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 06:04:31 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -181,9 +181,12 @@ int	Server::registerFdToEpoll(int fd, int epollEvent, int epollCtlOperation, voi
     }
 
 	Console::log(Console::INFO, "[SERVER] Registering to context : FD " + convToStr(fd) + " " + FdType::toString(fdType));
-	_fdContexts[fd]._fd = fd;
-	_fdContexts[fd]._data = data;
-	_fdContexts[fd]._fdType = fdType;
+	if (fd >= 0 && fd < MAX_FD)
+	{
+		_fdContexts[fd]._fd = fd;
+		_fdContexts[fd]._data = data;
+		_fdContexts[fd]._fdType = fdType;
+	}
 	return (0);
 }
 
@@ -193,23 +196,25 @@ void	Server::deregisterFdFromEpoll(int fd)
 	if (epoll_ctl(_epollfd, EPOLL_CTL_DEL, fd, NULL) == -1)
 		Console::log(Console::ERROR, strerror(errno));
 
-		
-	Console::log(Console::INFO, "[SERVER] Closing  : FD " + convToStr(fd) + " " + FdType::toString(_fdContexts[fd]._fdType));
-	close(_fdContexts[fd]._fd);
-	_fdContexts[fd]._fd = -1;
+	if (fd >= 0 && fd < MAX_FD)
+	{	
+		Console::log(Console::INFO, "[SERVER] Closing  : FD " + convToStr(fd) + " " + FdType::toString(_fdContexts[fd]._fdType));
+		close(_fdContexts[fd]._fd);
+		_fdContexts[fd]._fd = -1;
 
-	if (_fdContexts[fd]._data != NULL)
-	{
-		switch (_fdContexts[fd]._fdType)
-		{	
-			case FdType::FD_LISTENING_SOCKET :	delete static_cast<ListeningSocket*>(_fdContexts[fd]._data);	break ;
-			case FdType::FD_CLIENT_CONNECTION :	delete static_cast<ClientConnection*>(_fdContexts[fd]._data);	break ;
-			default :	break ;
+		if (_fdContexts[fd]._data != NULL)
+		{
+			switch (_fdContexts[fd]._fdType)
+			{	
+				case FdType::FD_LISTENING_SOCKET :	delete static_cast<ListeningSocket*>(_fdContexts[fd]._data);	break ;
+				case FdType::FD_CLIENT_CONNECTION :	delete static_cast<ClientConnection*>(_fdContexts[fd]._data);	break ;
+				default :	break ;
+			}
+			_fdContexts[fd]._data = NULL;
 		}
-		_fdContexts[fd]._data = NULL;
+		
+		_fdContexts[fd]._fdType = FdType::FD_UNDEFINED;
 	}
-	
-	_fdContexts[fd]._fdType = FdType::FD_UNDEFINED;
 }
 
 
