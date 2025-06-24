@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/01 12:02:45 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/24 06:04:31 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 12:16:11 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -40,6 +40,50 @@ Server::Server(void)
 
 Server::~Server(void)
 {
+	for (int fd = 0; fd < MAX_FD; fd++)
+	{
+		switch (_fdContexts[fd]._fdType)
+		{
+			case FdType::FD_UNDEFINED :
+				break;
+			
+			case FdType::FD_EPOLL :				
+				close(fd); 
+				_fdContexts[fd]._fd = -1;
+				_fdContexts[fd]._fdType = FdType::FD_UNDEFINED;	
+				break;
+			
+			case FdType::FD_LISTENING_SOCKET :	
+				close(fd);
+				_fdContexts[fd]._fd = -1;
+				if (_fdContexts[fd]._data != NULL) delete static_cast<ListeningSocket*>(_fdContexts[fd]._data); _fdContexts[fd]._data = NULL;
+				_fdContexts[fd]._data = NULL;
+				_fdContexts[fd]._fdType = FdType::FD_UNDEFINED;
+				break;
+
+			case FdType::FD_CLIENT_CONNECTION :	
+				close(fd); 
+				_fdContexts[fd]._fd = -1;
+				if (_fdContexts[fd]._data != NULL) delete static_cast<ClientConnection*>(_fdContexts[fd]._data); _fdContexts[fd]._data = NULL;
+				_fdContexts[fd]._data = NULL;
+				_fdContexts[fd]._fdType = FdType::FD_UNDEFINED;
+				break;
+
+			case FdType::FD_CGI_PIPE :
+				close(fd);	
+				break;
+
+			case FdType::FD_SIGNAL_PIPE :
+				close(fd); 
+				_fdContexts[fd]._fd = -1;
+				_fdContexts[fd]._data = NULL;
+				_fdContexts[fd]._fdType = FdType::FD_UNDEFINED;
+				break;
+			
+			default :
+				break;
+		}
+	}
 	Console::log(Console::INFO, "[SERVER] Closing EPOLL : FD " + convToStr(_epollfd));
 	close(_epollfd);
 	_epollfd = -1;
@@ -130,12 +174,9 @@ int     Server::createClientConnection(ListeningSocket* listeningSocket)
 
 void	Server::handleClientConnection(ClientConnection* clientConnection, int fd, FdType::Type fdType, uint32_t events)
 {
-	int	loops = 0;
-	
-	
-	clientConnection->handleEvent(events, fd, fdType);
+	clientConnection->handleEvent(events, fdType);
 	while (clientConnection->needEpollEventToProgress() == false)
-		clientConnection->handleEvent(events, fd, fdType);
+		clientConnection->handleEvent(events, fdType);
 	if (clientConnection->getClientConnectionState() == ClientConnection::STATE_CLOSING_CONNECTION)
 		deregisterFdFromEpoll(fd);
 }
@@ -217,10 +258,58 @@ void	Server::deregisterFdFromEpoll(int fd)
 	}
 }
 
+void	Server::deregisterFdsInForkChild(void)
+{
+	for (int fd = 0; fd < MAX_FD; fd++)
+	{
+		switch (_fdContexts[fd]._fdType)
+		{
+			case FdType::FD_UNDEFINED :
+				break;
+			
+			case FdType::FD_EPOLL :				
+				close(fd); 
+				_fdContexts[fd]._fd = -1;
+				_fdContexts[fd]._fdType = FdType::FD_UNDEFINED;	
+				break;
+			
+			case FdType::FD_LISTENING_SOCKET :	
+				close(fd);
+				_fdContexts[fd]._fd = -1;
+				// delete static_cast<ListeningSocket*>(_fdContexts[fd]._data);
+				_fdContexts[fd]._data = NULL;
+				_fdContexts[fd]._fdType = FdType::FD_UNDEFINED;
+				break;
+
+			case FdType::FD_CLIENT_CONNECTION :	
+				close(fd); 
+				_fdContexts[fd]._fd = -1;
+				// delete static_cast<ClientConnection*>(_fdContexts[fd]._data);
+				_fdContexts[fd]._data = NULL;
+				_fdContexts[fd]._fdType = FdType::FD_UNDEFINED;
+				break;
+
+			case FdType::FD_CGI_PIPE :			
+				break;
+
+			case FdType::FD_SIGNAL_PIPE :
+				close(fd); 
+				_fdContexts[fd]._fd = -1;
+				_fdContexts[fd]._data = NULL;
+				_fdContexts[fd]._fdType = FdType::FD_UNDEFINED;
+				break;
+			
+			default :
+				break;
+		}
+	}
+}
+
 
 // Make server ready
-void Server::makeServerReady(const Builder& builder, int signalPipeReadFd)
+void Server::makeServerReady(const Builder& builder, int signalPipeReadFd, int signalPipeWriteFd)
 {
+	(void)signalPipeWriteFd;
 	if (createEpoll() || createListeningSockets(builder.getRuntimeBuild()))
         throw std::runtime_error ("Server could not be built");
 	
@@ -228,6 +317,12 @@ void Server::makeServerReady(const Builder& builder, int signalPipeReadFd)
 		return ;
 	Console::log(Console::DEBUG, "[SERVER] Adding signal pipe read fd to epoll " + convToStr(signalPipeReadFd));
 	registerFdToEpoll(signalPipeReadFd, EPOLLIN, EPOLL_CTL_ADD, NULL, FdType::FD_SIGNAL_PIPE);
+	if (signalPipeWriteFd >= 0 && signalPipeWriteFd < MAX_FD)
+	{
+		_fdContexts[signalPipeWriteFd]._fd = signalPipeWriteFd;
+		_fdContexts[signalPipeWriteFd]._data = NULL;
+		_fdContexts[signalPipeWriteFd]._fdType = FdType::FD_SIGNAL_PIPE;
+	}
 	_running = true;
 }
 

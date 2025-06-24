@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:03 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/24 06:28:47 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 12:21:14 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -50,14 +50,6 @@ class ClientConnection
 			STATE_PAUSE,
 		};
 
-		enum	SendState
-		{
-			SENDING_HEADERS,
-			SENDING_BODY_STRING,
-			SENDING_BODY_FD,
-			SENDING_DONE
-		};
-
 		ClientConnection(Server& server, int fd, const ListeningSocket* relatedListeningSocket);
 		virtual ~ClientConnection(void);
 
@@ -74,9 +66,7 @@ class ClientConnection
 		CgiHandler					_cgiHandler;
 		HttpResponse				_httpResponse;
 
-		SendState					_sendState;
 		TStr						_sendBuffer;
-		size_t						_sendOffset;
 		int							_sendFd;
 		size_t						_actualBytesSent;
 		bool						_sendFdClear;
@@ -86,7 +76,7 @@ class ClientConnection
 		int							_logBytesSentFd;
 
 		// Events functions
-		void	handleReadingHeaders(int events, int fd, FdType::Type fdType);
+		void	handleReadingHeaders(int events, FdType::Type fdType);
 		void	handleReadingHeadersInvalid(void);
 		void	handleReadingHeadersDone(void);
 		void	handleClientDisconnectedWhileRecv(void);
@@ -105,17 +95,15 @@ class ClientConnection
 		void	handleParsingBodyDone(void);
 		void	handleReadingBodyInvalid(void);
 
-		void	handleReadingBody(int events, int fd, FdType::Type fdType);
+		void	handleReadingBody(int events, FdType::Type fdType);
 
 		void	handleCgiPrepare(void);
 		void	handleCgiPrepareValid(void);
 		void	handleCgiPrepareError(void);
 
-		void	handleCgiReady(int events, int fd, FdType::Type fdType);
+		void	handleCgiReady(int events, FdType::Type fdType);
 		void	handleCgiFinished(void);
 		
-
-
 		void	handleReadyToSend(void);
 		void	handleSendingStr(int events, FdType::Type fdType);
 		void	handleSendingFd(int events, FdType::Type fdType);
@@ -125,18 +113,14 @@ class ClientConnection
 
 	public:
 		// Event handler
-		void	handleEvent(int events, int fd, FdType::Type fdType);
+		void	handleEvent(int events, FdType::Type fdType);
 
 		// 4 - Getter
 		int     			getFd(void) const;
 		ClientState			getClientConnectionState(void) const;
 		const CgiHandler& 	getCgiHandler(void) const;
 		bool				needEpollEventToProgress(void) const;
-		
-		// void	setClientConnectionSendingResponse(void);
-		// void	setClientConnectionCgiReady(void);
 
-	
 };
 
 

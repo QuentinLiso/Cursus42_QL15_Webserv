@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:18 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/22 23:38:31 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 10:58:40 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -430,7 +430,6 @@ bool	HttpRequestData::setConnection(const TStr& headerValue)
 	
 	TStr	keepAlive = "keep-alive";
 	TStr	close = "close";
-	size_t	len = headerValue.size();
 
 	if (areCaseInsensitiveEquals(headerValue, "keep-alive"))
 	{

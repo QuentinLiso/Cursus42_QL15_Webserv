@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:15 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/22 23:32:34 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 10:56:57 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -80,7 +80,7 @@ class	HttpRequest
 		// Body
 		void			setMaxbodySize(size_t size);		
 		RequestState	prepareParsingHttpRequestBody(size_t maxBodySize, bool putStaticRequest, const TStr& resolvedPath);
-		RequestState	parseHttpBodyFromRequestBuffer(bool putStaticRequest);
+		RequestState	parseHttpBodyFromRequestBuffer(void);
 		RequestState	parseChunkedHttpBodyFromRequestBuffer(void);
 		bool			setChunkSizeHexValue(const TStr&, size_t& out);
 		RequestState	parseContentLengthBody(char recvBuffer[], size_t bytesReceived);

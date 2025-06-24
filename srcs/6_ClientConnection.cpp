@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:09 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/24 06:19:18 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 12:25:51 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,8 +25,7 @@ ClientConnection::ClientConnection(Server& server, int fd, const ListeningSocket
 			_needEpollToProgress(true),
 			_httpRequest(),
 			_httpResolution(_httpRequest),
-			_sendState(SENDING_HEADERS),
-			_sendOffset(0),
+			_cgiHandler(server),
 			_sendFd(-1),
 			_actualBytesSent(0),
 			_sendFdClear(false),
@@ -39,7 +38,7 @@ ClientConnection::~ClientConnection(void)
 
 
 // Private
-void	ClientConnection::handleReadingHeaders(int events, int fd, FdType::Type fdType)
+void	ClientConnection::handleReadingHeaders(int events, FdType::Type fdType)
 {
 	if ((events & EPOLLIN) != 0 && fdType == FdType::FD_CLIENT_CONNECTION)
 	{ 
@@ -206,7 +205,7 @@ void	ClientConnection::handleReadingBodyInvalid(void)
 	_needEpollToProgress = false;
 }
 
-void	ClientConnection::handleReadingBody(int events, int fd, FdType::Type fdType)
+void	ClientConnection::handleReadingBody(int events, FdType::Type fdType)
 {
 	if ((events & EPOLLIN) != 0 && fdType == FdType::FD_CLIENT_CONNECTION)
 	{
@@ -266,9 +265,8 @@ void	ClientConnection::handleCgiPrepareError(void)
 	_needEpollToProgress = false;
 }
 
-void	ClientConnection::handleCgiReady(int events, int fd, FdType::Type fdType)
+void	ClientConnection::handleCgiReady(int events, FdType::Type fdType)
 {
-	static int i = 0;
 	if ((events & EPOLLOUT) && fdType == FdType::FD_CGI_PIPE)
 	{
 		if (_cgiHandler.writeToCgiInputPipe())
@@ -299,7 +297,10 @@ void	ClientConnection::handleCgiFinished(void)
 {
 	_cgiHandler.flushBuffer();
 	_server.deregisterFdFromEpoll(_cgiHandler.getOutputPipeRead());
-	
+	if (!_cgiHandler.isOutOnly())
+		close(_cgiHandler.getRequestBodyInputFd());
+	close(_cgiHandler.getCgiCompleteOutputFd());
+
 	std::cout << "Bytes read from CGI output pipe : " << _cgiHandler.getActualBytesReadFromCgiOutput() << std::endl;
 	_httpResponse.setCgiResponse(_cgiHandler.getCgiStatusCode(), _cgiHandler.getCgiCompleteOutputFilename(), _cgiHandler.getActualBytesReadFromCgiOutput(), _cgiHandler.getCgiOutputHeaders(), _httpResolution.getLocationConfig());
 	_clientConnectionState = STATE_READY_TO_SEND;
@@ -311,7 +312,7 @@ void	ClientConnection::handleReadyToSend(void)
 	if (LOG_BYTES_SENT)
 	{
 		std::ostringstream oss;
-		oss << "/home/qliso/Documents/Webserv_github/html/tmp/3_BytesSent/bytes_sent_tmp_" << ClientConnection::_logBytesSentFilecount++;
+		oss << "tmp/bytes_sent_tmp_" << ClientConnection::_logBytesSentFilecount++;
 		_logBytesSentFilename = oss.str();
 		_logBytesSentFd = open(_logBytesSentFilename.c_str(), O_CREAT | O_TRUNC | O_RDWR, 0600);
 		Console::log(Console::DEBUG, "Opening BytesSentLogfile : " + _logBytesSentFilename);
@@ -468,20 +469,20 @@ void	ClientConnection::handleClosingConnection(void)
 	// }
 }
 // Public
-void	ClientConnection::handleEvent(int events, int fd, FdType::Type fdType)
+void	ClientConnection::handleEvent(int events, FdType::Type fdType)
 {
 	switch(_clientConnectionState)
 	{
-		case STATE_READING_HEADERS :		handleReadingHeaders(events, fd, fdType);		break;
+		case STATE_READING_HEADERS :		handleReadingHeaders(events, fdType);		break;
 		case STATE_REQUEST_RESOLUTION :		handleRequestValidation();	break;
 		case STATE_PREPARE_READING_BODY:	handlePrepareReadingBody();	break;
-		case STATE_READING_BODY :			handleReadingBody(events, fd, fdType); 		break;
+		case STATE_READING_BODY :			handleReadingBody(events, fdType); 		break;
 		case STATE_READY_TO_SEND:			handleReadyToSend(); 		break;
 		case STATE_SENDING_BODY_STR :		handleSendingStr(events, fdType);			break;
 		case STATE_SENDING_BODY_FD :		handleSendingFd(events, fdType);			break;
 		
 		case STATE_CGI_PREPARE :			handleCgiPrepare(); 		break;
-		case STATE_CGI_READY :				handleCgiReady(events, fd, fdType);			break;
+		case STATE_CGI_READY :				handleCgiReady(events, fdType);			break;
 		case STATE_CGI_FINISHED :			handleCgiFinished() ;	return ;
 		case STATE_CLOSING_CONNECTION: 		handleClosingConnection();	return ;
 		default:							return;
@@ -492,9 +493,3 @@ int								ClientConnection::getFd(void) const { return _fd; }
 ClientConnection::ClientState	ClientConnection::getClientConnectionState(void) const { return _clientConnectionState; }
 bool							ClientConnection::needEpollEventToProgress(void) const { return _needEpollToProgress; }
 const CgiHandler&				ClientConnection::getCgiHandler(void) const { return _cgiHandler; }
-
-
-// void	ClientConnection::setClientConnectionSendingResponse(void) { _clientConnectionState = STATE_SENDING_RESPONSE; }
-
-// void	ClientConnection::setClientConnectionCgiReady(void) { _clientConnectionState = STATE_CGI_READY; }
-

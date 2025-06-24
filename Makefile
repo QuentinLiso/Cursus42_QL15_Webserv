@@ -6,7 +6,7 @@
 #    By: qliso <qliso@student.42.fr>                +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/05/07 11:54:51 by mafritz           #+#    #+#              #
-#    Updated: 2025/06/19 18:19:18 by qliso            ###   ########.fr        #
+#    Updated: 2025/06/24 10:49:38 by qliso            ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -62,7 +62,7 @@ OBJS		=		$(SRCS_FILES:%.cpp=$(OBJS_PATH)%.o)
 DEPS		=		$(OBJS:.o=.d)
 
 CC			=		c++
-CPPFLAGS	=		-Wall -Wextra -Werror -Wno-unused -std=c++98 -MMD -MP -I.
+CPPFLAGS	=		-Wall -Wextra -Werror -std=c++98 -MMD -MP -I.
 RM			=		rm -rf
 
 

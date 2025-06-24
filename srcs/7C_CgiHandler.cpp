@@ -6,14 +6,16 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/19 16:19:45 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/23 11:27:36 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 12:23:18 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "7C_CgiHandler.hpp"
+#include "4_Server.hpp"
 
-CgiHandler::CgiHandler(void) 
-		:	_cgiState(CGI_SETUP),
+CgiHandler::CgiHandler(Server& server) 
+		:	_server(server),
+			_cgiState(CGI_SETUP),
 			_cgiStatusCode(200),
 			_outOnly(true),
 			_pid(-1),
@@ -54,6 +56,7 @@ CgiHandler::CgiState	CgiHandler::setupCgiOutput(const HttpRequest& httpRequest, 
 
 	else if (_pid == 0)
 	{
+		_server.deregisterFdsInForkChild();
 		int devnull = open("/dev/null", O_RDONLY);
 		if (devnull >= 0)
 		{
@@ -159,7 +162,7 @@ void					CgiHandler::buildExecveArgsEnv(const HttpRequest& httpRequest, const Ht
 CgiHandler::CgiState	CgiHandler::openOutputCompleteFile(void)
 {
 	std::ostringstream	tmpFilename;
-	tmpFilename << "/home/qliso/Documents/Webserv_github/html/tmp/2_CgiOutput/tmp_file_cgi_" << CgiHandler::_cgiOutputCompleteFdTmpCount++ << ".txt";
+	tmpFilename << "tmp/tmp_file_cgi_" << CgiHandler::_cgiOutputCompleteFdTmpCount++ << ".txt";
 	_cgiOutputCompleteFilepath = tmpFilename.str();
 	_cgiOutputCompleteFd = open(_cgiOutputCompleteFilepath.c_str(), O_RDWR | O_CREAT | O_TRUNC, 0600);
 	if (_cgiOutputCompleteFd < 0)

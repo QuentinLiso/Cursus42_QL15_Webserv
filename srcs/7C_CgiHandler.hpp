@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/19 16:19:43 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/23 00:26:05 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 11:54:57 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,6 +21,8 @@
 #include "7A_HttpRequestData.hpp"
 #include "7B_HttpRequestResolution.hpp"
 #include "8_HttpResponse.hpp"
+
+class 	Server;
 
 class	CgiHandler
 {
@@ -46,11 +48,12 @@ class	CgiHandler
 			PARSING_HEADERS_INVALID,	// OK
 		};
 
-		CgiHandler(void);
+		CgiHandler(Server& server);
 		~CgiHandler(void);
 
 
 	private:
+		Server&		_server;
 		CgiState	_cgiState;
 		int			_cgiStatusCode;
 		bool		_outOnly;

@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/03 19:31:18 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/23 16:16:33 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 11:07:00 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -167,7 +167,7 @@ HttpRequest::RequestState	HttpRequest::prepareParsingHttpRequestBody(size_t maxB
 	else 
 	{
 		std::ostringstream	tmpFilename;
-		tmpFilename << "/home/qliso/Documents/Webserv_github/html/tmp/1_BodyRequest/tmp_file" << HttpRequest::_requestBodyParsingFdTmpCount++ << ".txt";
+		tmpFilename << "tmp/tmp_file" << HttpRequest::_requestBodyParsingFdTmpCount++ << ".txt";
 		_requestBodyParsingFilepath = tmpFilename.str();
 	}
 
@@ -183,7 +183,7 @@ HttpRequest::RequestState	HttpRequest::prepareParsingHttpRequestBody(size_t maxB
 	// -> We can proceed to parsing the request buffer
 }
 
-HttpRequest::RequestState	HttpRequest::parseHttpBodyFromRequestBuffer(bool putStaticRequest)
+HttpRequest::RequestState	HttpRequest::parseHttpBodyFromRequestBuffer(void)
 {
 	if (_requestBodyType == REQUEST_BODY_CONTENT_LENGTH)
 	{
@@ -456,7 +456,7 @@ HttpRequest::RequestState	HttpRequest::prepareParseHttpBody(const LocationConfig
 		if (_requestState == PARSING_BODY_INVALID)	
 			return (PARSING_BODY_INVALID);
 		
-		_requestState = parseHttpBodyFromRequestBuffer(putStaticRequest);
+		_requestState = parseHttpBodyFromRequestBuffer();
 		if (_requestState == PARSING_BODY_DONE)
 		{
 			Console::log(Console::INFO, "[SERVER] Closing file " + _requestBodyParsingFilepath + " on FD " + convToStr(_requestBodyParsingFd) + " storing request body");

@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/01 12:02:42 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/24 05:44:23 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 11:59:11 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,8 +30,8 @@ class	Server
 
 	private:
 		struct FdContext {
-			int		_fd;
-			void*	_data;
+			int				_fd;
+			void*			_data;
 			FdType::Type	_fdType;
 
 			FdContext();
@@ -63,10 +63,10 @@ class	Server
 		// Handle fds
 		int		registerFdToEpoll(int fd, int epollEvent, int epollCtlOperation, void* data, FdType::Type fdType);
 		void	deregisterFdFromEpoll(int fd);
-
+		void	deregisterFdsInForkChild(void);
 
 		// Make server ready
-		void	makeServerReady(const Builder& builder, int signalPipeReadFd);
+		void	makeServerReady(const Builder& builder, int signalPipeReadFd, int signalPipeWriteFd);
 		void	run(int timeout = -1);
 };
 
