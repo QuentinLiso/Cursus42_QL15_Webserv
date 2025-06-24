@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:29:17 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/23 07:45:27 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 05:12:49 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -71,9 +71,12 @@ namespace	FdType
 {
 	enum Type
 	{
+		FD_UNDEFINED,
+		FD_EPOLL,
 		FD_LISTENING_SOCKET,
 		FD_CLIENT_CONNECTION,
-		FD_CGI_PIPE
+		FD_CGI_PIPE,
+		FD_SIGNAL_PIPE
 	};
 	
 	TStr	toString(FdType::Type type);

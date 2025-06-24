@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/31 12:59:45 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/13 16:21:55 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 01:46:21 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -77,7 +77,7 @@ ListeningSocket::ListeningSocket(const TIPPort& ipPort, const HostToServerMap& h
 	_addr.sin_addr.s_addr = htonl(_ipPort.first);
 }
 
-ListeningSocket::~ListeningSocket(void) { closeSocket(); }
+ListeningSocket::~ListeningSocket(void) {}
 
 int	ListeningSocket::makeListeningSocketReady(void)
 {

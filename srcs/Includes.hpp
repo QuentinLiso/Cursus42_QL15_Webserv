@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:21:21 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/21 11:11:59 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 00:56:59 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,6 +37,7 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include <sys/wait.h>
+#include <csignal>
 
 class Token;
 class Lexer;

@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:09 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/23 16:50:31 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 05:40:59 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -238,14 +238,14 @@ void	ClientConnection::handleCgiPrepareValid(void)
 {
 	if (_cgiHandler.isOutOnly())
 	{
-		_server.registerNewFdToEpoll(_cgiHandler.getOutputPipeRead(), EPOLLIN | EPOLLHUP, EPOLL_CTL_ADD, this, FdType::FD_CGI_PIPE);
+		_server.registerFdToEpoll(_cgiHandler.getOutputPipeRead(), EPOLLIN | EPOLLHUP, EPOLL_CTL_ADD, this, FdType::FD_CGI_PIPE);
 		_clientConnectionState = STATE_CGI_READY;
 		_needEpollToProgress = true;
 	}
 	else
 	{
-		_server.registerNewFdToEpoll(_cgiHandler.getInputPipeWrite(), EPOLLOUT | EPOLLHUP, EPOLL_CTL_ADD, this, FdType::FD_CGI_PIPE);
-		_server.registerNewFdToEpoll(_cgiHandler.getOutputPipeRead(), EPOLLIN | EPOLLHUP, EPOLL_CTL_ADD, this, FdType::FD_CGI_PIPE);
+		_server.registerFdToEpoll(_cgiHandler.getInputPipeWrite(), EPOLLOUT | EPOLLHUP, EPOLL_CTL_ADD, this, FdType::FD_CGI_PIPE);
+		_server.registerFdToEpoll(_cgiHandler.getOutputPipeRead(), EPOLLIN | EPOLLHUP, EPOLL_CTL_ADD, this, FdType::FD_CGI_PIPE);
 		_clientConnectionState = STATE_CGI_READY;
 		_needEpollToProgress = true;
 	}
@@ -266,17 +266,13 @@ void	ClientConnection::handleCgiReady(int events, int fd, FdType::Type fdType)
 		if (_cgiHandler.writeToCgiInputPipe())
 		{
 			std::cout << "Bytes written to CGI input pipe : " << _cgiHandler.getActualBytesWrittenToCgiInput() << std::endl;
-			// close(_cgiHandler.getInputPipeWrite());
-			_server.deregisterFdFromEpoll(_cgiHandler.getInputPipeWrite(), FdType::FD_CGI_PIPE);
+			_server.deregisterFdFromEpoll(_cgiHandler.getInputPipeWrite());
 		}
 	}
 
 	if ((events & EPOLLIN) && fdType == FdType::FD_CGI_PIPE)
 	{
-		if(_cgiHandler.readFromCgiOutputPipe())
-		{
-			;
-		}
+		_cgiHandler.readFromCgiOutputPipe();
 	}
 
 	if ((events & EPOLLHUP) && fdType == FdType::FD_CGI_PIPE)
@@ -294,11 +290,7 @@ void	ClientConnection::handleCgiReady(int events, int fd, FdType::Type fdType)
 void	ClientConnection::handleCgiFinished(void)
 {
 	_cgiHandler.flushBuffer();
-	// close(_cgiHandler.getOutputPipeRead());
-	_server.deregisterFdFromEpoll(_cgiHandler.getOutputPipeRead(), FdType::FD_CGI_PIPE);
-
-	close(_cgiHandler.getRequestBodyInputFd());
-	close(_cgiHandler.getCgiCompleteOutputFd());
+	_server.deregisterFdFromEpoll(_cgiHandler.getOutputPipeRead());
 	
 	std::cout << "Bytes read from CGI output pipe : " << _cgiHandler.getActualBytesReadFromCgiOutput() << std::endl;
 	_httpResponse.setCgiResponse(_cgiHandler.getCgiStatusCode(), _cgiHandler.getCgiCompleteOutputFilename(), _cgiHandler.getActualBytesReadFromCgiOutput(), _cgiHandler.getCgiOutputHeaders(), _httpResolution.getLocationConfig());

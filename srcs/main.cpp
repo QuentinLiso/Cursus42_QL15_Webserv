@@ -8,6 +8,7 @@
 # include "5_ListeningSocket.hpp"
 # include "8_HttpResponse.hpp"
 
+
 void		MakeConfig(const TStr& filename, Builder& builder)
 {
 	Lexer lexer(filename);
@@ -25,6 +26,26 @@ void		MakeConfig(const TStr& filename, Builder& builder)
 }
 
 
+static int	g_signalPipeFd[2];
+
+void	createSignalPipe(void)
+{
+	if (pipe(g_signalPipeFd) == -1)
+	{
+		std::ostringstream oss;
+		Console::log(Console::WARNING, "[SERVER] Failed to pipe for clean signal-handled exit... Server will still run, kill the process if you want to stop it");
+		g_signalPipeFd[0] == -1;
+		g_signalPipeFd[1] == -1;
+	}
+	else
+		Console::log(Console::DEBUG, "[SERVER] Pipe fds for exit signal handling created : " + convToStr(g_signalPipeFd[0]) + " and " + convToStr(g_signalPipeFd[1]));
+}
+
+void	signalHandler(int signum)
+{
+	write(g_signalPipeFd[1], &signum, 1);
+}
+
 int main(int ac, char **av)
 {
 	if (ac != 2)
@@ -34,31 +55,20 @@ int main(int ac, char **av)
 	}
 	try
 	{
+		Console::log(Console::INFO, "Starting server program, process : " + convToStr(getpid()));
 		Builder builder;
 		MakeConfig(av[1], builder);
-		builder.printRuntimeBuild();
+		// builder.printRuntimeBuild();
+
 		Server	server;
-		server.makeServerReady(builder);
+		createSignalPipe();
+		server.makeServerReady(builder, g_signalPipeFd[0]);
+		signal(SIGINT, signalHandler);
 		server.run();
 	}
 	catch(const std::exception& e)
 	{
 		std::cerr << e.what() << '\n';
 	}
-
-	// HttpRequest	request;
-	// TStr		clientRequest = "GET /docs/in%21%20dex.html HTTP/1.1\r\n"
-	// 							"host: 127.0.0.1:80\r\n"
-	// 							"user-agent: lolilou\r\n"
-	// 							"trucmachin:sssss\r\n"
-	// 							"Content-Type: multipart/form-data; boundary=iii\r\n"
-	// 							"\r\n"
-	// 							;
-
-	// request.setBuffer(clientRequest);
-	// std::cout << request.getBuffer() << std::endl;
-
-	// request.parseRequestAndHeaders();
-
 	return (0);
 }

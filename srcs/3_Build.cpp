@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/22 08:56:11 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/23 16:06:31 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 04:02:13 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -946,8 +946,8 @@ int	ClientMaxBodySize::setBytes(const TStrVect& args)
 		return (error("client_max_body_size directive must have exactly 1 non-empty argument"));
 	
 	const TStr& arg = args[0];
-	if (strToBytes(arg, _maxBytes) == false || _maxBytes == 0)
-		return (error("Invalid bytes number '" + arg + "' in client_max_body_size directive, bytes must be a number between 1 and 100M"));
+	if (strToBytes(arg, _maxBytes, 10000000000) == false || _maxBytes == 0)
+		return (error("Invalid bytes number '" + arg + "' in client_max_body_size directive, bytes must be a number between 1 and 1000M"));
 	return (0);
 }
 
@@ -1204,7 +1204,10 @@ int	ServerConfig::setDirective(Statement* statement)
 		setError(statement->error("Invalid directive in server block"));
 		return (_error);
 	}	
-	return ( (this->*(it->second))(statement) );
+	int	errorFound = (this->*(it->second))(statement);
+	if (errorFound)
+		_error = errorFound;
+	return (errorFound);
 }
 
 void	ServerConfig::addLocation(LocationConfig* locationConfig)
@@ -1286,6 +1289,8 @@ int	ServerConfig::validServerConfig(void)
 	if (checkDuplicatePaths())
 		errorFound = 1;
 	
+	if (_error)
+		errorFound = _error;
 	return (errorFound);
 }
 

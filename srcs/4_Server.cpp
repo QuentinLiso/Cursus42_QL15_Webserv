@@ -6,39 +6,44 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/01 12:02:45 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/23 12:39:15 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 05:55:12 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "4_Server.hpp"
 
 // Constructor & destructor
-Server::FdContext::FdContext(void) {}
+Server::FdContext::FdContext(void)
+	:	_fd(-1), 
+		_data(NULL),
+		_fdType(FdType::FD_UNDEFINED)
+{}
 
-Server::FdContext::~FdContext(void) {}
+Server::FdContext::~FdContext(void)
+{
+	if (_data != NULL)
+	{
+		if (_fdType == FdType::FD_CLIENT_CONNECTION)
+			delete static_cast<ClientConnection*>(_data);
+		else if (_fdType == FdType::FD_LISTENING_SOCKET)
+			delete static_cast<ListeningSocket*>(_data);
+	}
+}
 
 
 Server::Server(void)
         :   _epollfd(-1),
             _eventsReady(-1),
+			_running(false),
             _error(0)
 {}
 
 Server::~Server(void)
 {
-    if (_epollfd != -1)
-        debugClose(_epollfd);
-    for(size_t i = 0; i < MAX_FD; i++)
-	{
-		FdContext*	context = _fdContexts[i];
-		switch (context->_fdType)
-		{
-			case	FdType::FD_LISTENING_SOCKET:	delete static_cast<ListeningSocket*>(context->_data); break;
-			case	FdType::FD_CLIENT_CONNECTION:	delete static_cast<ClientConnection*>(context->_data); break;
-			default :					break ;
-		}
-		delete context;
-	}
+	Console::log(Console::INFO, "[SERVER] Closing EPOLL : FD " + convToStr(_epollfd));
+	close(_epollfd);
+	_epollfd = -1;
+	Console::log(Console::INFO, "\nI'm tired, time to go to sleep ! See you around :)");
 }
 
 // Init making server ready
@@ -47,7 +52,13 @@ int	Server::createEpoll(void)
     _epollfd = epoll_create1(0);
 	
     if (_epollfd == -1)	return (error("[SERVER] : epoll create failed, server cannot be launched"));
+    if (_epollfd >= MAX_FD)	return (error("[SERVER] : epoll fd too high for stored num of fds"));
 
+	Console::log(Console::INFO, "[SERVER] Registering to context : FD " + convToStr(_epollfd) + " " + FdType::toString(FdType::FD_EPOLL));
+	_fdContexts[_epollfd]._fd = _epollfd;
+	_fdContexts[_epollfd]._data = NULL;
+	_fdContexts[_epollfd]._fdType = FdType::FD_EPOLL;
+	Console::log(Console::DEBUG, "[SERVER] Epoll fd opened on FD : " + convToStr(_epollfd));
 	return (0);
 }
 
@@ -71,7 +82,7 @@ int Server::createListeningSockets(const std::map<TIPPort, HostToServerMap>& run
 			Console::log(Console::ERROR, "Socket FD is too high, not added to server");
 			continue ;
 		}
-		registerNewFdToEpoll(fd, EPOLLIN, EPOLL_CTL_ADD, listeningSocket, FdType::FD_LISTENING_SOCKET);
+		registerFdToEpoll(fd, EPOLLIN, EPOLL_CTL_ADD, listeningSocket, FdType::FD_LISTENING_SOCKET);
     }
     return (_error);
 }
@@ -83,20 +94,20 @@ void	Server::fdActivityMonitor(int eventQueueIndex)
 	int			fd = _eventQueue[eventQueueIndex].data.fd;
 	uint32_t	events = _eventQueue[eventQueueIndex].events;
 
-	if (fd < 0 || fd >= MAX_FD || _fdContexts[fd] == NULL)
+	if (fd < 0 || fd >= MAX_FD)
 	{
-		Console::log(Console::ERROR, "Got an event inside a FD that is not in the epoll wait queue");
+		// Console::log(Console::ERROR, "Got an event inside a FD that is not in the epoll wait queue");
 		return ;
 	}
 
-	FdContext*	context = _fdContexts[fd];
-	switch (context->_fdType)
+	switch (_fdContexts[fd]._fdType)
 	{
-		case	FdType::FD_LISTENING_SOCKET: 	createClientConnection(static_cast<ListeningSocket*>(context->_data));	break;
-		case	FdType::FD_CLIENT_CONNECTION:	handleClientConnection(context, events);								break;
-		case	FdType::FD_CGI_PIPE:			handleClientConnection(context, events);								break;
+		case	FdType::FD_LISTENING_SOCKET: 	createClientConnection(static_cast<ListeningSocket*>(_fdContexts[fd]._data));			break;
+		case	FdType::FD_CLIENT_CONNECTION:	handleClientConnection(static_cast<ClientConnection*>(_fdContexts[fd]._data), fd, _fdContexts[fd]._fdType, events);	break;
+		case	FdType::FD_CGI_PIPE:			handleClientConnection(static_cast<ClientConnection*>(_fdContexts[fd]._data), fd, _fdContexts[fd]._fdType, events);	break;
+		case	FdType::FD_SIGNAL_PIPE:			_running = false;	break ;
 		default	:	
-			Console::log(Console::ERROR, "Got an event inside a FD that is neither a listening socket nor a client open connection");
+			Console::log(Console::ERROR, "Got an event inside a FD that is not a socket, client connection or cgi pipe");
 			break ;
 	}
 }
@@ -113,21 +124,20 @@ int     Server::createClientConnection(ListeningSocket* listeningSocket)
 		return (-1);
 	}
 	logIpClient((struct sockaddr_in*)&clientAddr, listeningSocket->getSockFd(), clientfd);
-	registerNewFdToEpoll(clientfd, EPOLLIN | EPOLLOUT | EPOLLHUP, EPOLL_CTL_ADD, new ClientConnection(*this, clientfd, listeningSocket), FdType::FD_CLIENT_CONNECTION);
+	registerFdToEpoll(clientfd, EPOLLIN | EPOLLOUT | EPOLLHUP, EPOLL_CTL_ADD, new ClientConnection(*this, clientfd, listeningSocket), FdType::FD_CLIENT_CONNECTION);
     return (clientfd);
 }
 
-void	Server::handleClientConnection(FdContext* context, uint32_t events)
+void	Server::handleClientConnection(ClientConnection* clientConnection, int fd, FdType::Type fdType, uint32_t events)
 {
 	int	loops = 0;
 	
-	ClientConnection*	client = static_cast<ClientConnection*>(context->_data);
 	
-	client->handleEvent(events, context->_fd, context->_fdType);
-	while (client->needEpollEventToProgress() == false)
-		client->handleEvent(events, context->_fd, context->_fdType);
-	if (client->getClientConnectionState() == ClientConnection::STATE_CLOSING_CONNECTION)
-		deregisterFdFromEpoll(context->_fd, FdType::FD_CLIENT_CONNECTION);
+	clientConnection->handleEvent(events, fd, fdType);
+	while (clientConnection->needEpollEventToProgress() == false)
+		clientConnection->handleEvent(events, fd, fdType);
+	if (clientConnection->getClientConnectionState() == ClientConnection::STATE_CLOSING_CONNECTION)
+		deregisterFdFromEpoll(fd);
 }
 
 
@@ -155,20 +165,13 @@ int 	Server::error(const TStr& msg)
 }
 
 // Handle fds
-void	Server::registerNewFdToEpoll(int fd, int epollEvent, int epollCtlOperation, void* data, FdType::Type fdType)
-{
-	if (registerSingleFdToEpoll(fd, epollEvent, epollCtlOperation, fdType))
-		return ;
-
-	registerFdContext(fd, data, fdType);
-}
-
-int 	Server::registerSingleFdToEpoll(int fd, int epollEvent, int epollCtlOperation, FdType::Type fdType)
+int	Server::registerFdToEpoll(int fd, int epollEvent, int epollCtlOperation, void* data, FdType::Type fdType)
 {
 	Console::log(Console::INFO, "[SERVER] Epoll ctl called on : FD " + convToStr(fd) + " " + FdType::toString(fdType));
     struct epoll_event  eventRegister;
     eventRegister.events = epollEvent;
     eventRegister.data.fd = fd;
+
     if (epoll_ctl(_epollfd, epollCtlOperation, fd, &eventRegister) == -1)
     {
         std::ostringstream  oss;
@@ -176,99 +179,57 @@ int 	Server::registerSingleFdToEpoll(int fd, int epollEvent, int epollCtlOperati
         Console::log(Console::ERROR, oss.str());
         return (1);
     }
-    return (0);
-	// Used to switch client connection to EPOLLOUT
-}
 
-void	Server::registerFdContext(int fd, void* data, FdType::Type fdType)
-{
 	Console::log(Console::INFO, "[SERVER] Registering to context : FD " + convToStr(fd) + " " + FdType::toString(fdType));
-	FdContext*	fdContext = new FdContext();
-
-	fdContext->_fd = fd;
-	fdContext->_data = data;
-	fdContext->_fdType = fdType;
-	
-	_fdContexts[fd] = fdContext;
+	_fdContexts[fd]._fd = fd;
+	_fdContexts[fd]._data = data;
+	_fdContexts[fd]._fdType = fdType;
+	return (0);
 }
 
-void	Server::deregisterFdFromEpoll(int fd, FdType::Type fdType)
+void	Server::deregisterFdFromEpoll(int fd)
 {
-	Console::log(Console::INFO, "[SERVER] Deregistering : FD " + convToStr(fd));
-	if (fd >= 0 && fd < MAX_FD)
+	Console::log(Console::INFO, "[SERVER] Epoll ctl DEL on : FD " + convToStr(fd) + " " + FdType::toString(_fdContexts[fd]._fdType));
+	if (epoll_ctl(_epollfd, EPOLL_CTL_DEL, fd, NULL) == -1)
+		Console::log(Console::ERROR, strerror(errno));
+
+		
+	Console::log(Console::INFO, "[SERVER] Closing  : FD " + convToStr(fd) + " " + FdType::toString(_fdContexts[fd]._fdType));
+	close(_fdContexts[fd]._fd);
+	_fdContexts[fd]._fd = -1;
+
+	if (_fdContexts[fd]._data != NULL)
 	{
-		FdContext*	context = _fdContexts[fd];
-		if (context != NULL)
-		{
-			Console::log(Console::INFO, "[SERVER] Deregistering from context : FD " + convToStr(fd) + " " + FdType::toString(fdType));
-			switch (context->_fdType)
-			{
-				case	FdType::FD_LISTENING_SOCKET:	delete static_cast<ListeningSocket*>(context->_data); break;
-				case	FdType::FD_CLIENT_CONNECTION:	delete static_cast<ClientConnection*>(context->_data); break;
-				default :						break ;
-			}
-			delete context;
+		switch (_fdContexts[fd]._fdType)
+		{	
+			case FdType::FD_LISTENING_SOCKET :	delete static_cast<ListeningSocket*>(_fdContexts[fd]._data);	break ;
+			case FdType::FD_CLIENT_CONNECTION :	delete static_cast<ClientConnection*>(_fdContexts[fd]._data);	break ;
+			default :	break ;
 		}
-		Console::log(Console::INFO, "[SERVER] Epoll ctl DEL on : FD " + convToStr(fd) + " " + FdType::toString(fdType));
-		if (epoll_ctl(_epollfd, EPOLL_CTL_DEL, fd, NULL) == -1)
-			Console::log(Console::ERROR, strerror(errno));
-		Console::log(Console::INFO, "[SERVER] Closing  : FD " + convToStr(fd) + " " + FdType::toString(fdType));
-		close(fd);
+		_fdContexts[fd]._data = NULL;
 	}
-	// Used to close EPOLLIN/EPOLLOUT for CGI, and even client connection
+	
+	_fdContexts[fd]._fdType = FdType::FD_UNDEFINED;
 }
 
-
-// Switch client connection to EPOLLOUT
-// Create EPOLLIN for CGI + add to fd context
-// Create EPOLLOUT for CGI
-// Delete EPOLLIN for CGI
-// Delete EPOLLOUT for CGI
-// Delete client connection
-
-// void	Server::handleFailingEpollCtl(ClientConnection& client)
-// {
-// 	int	fd1 = client.getFd();
-// 	epoll_ctl(_epollfd, EPOLL_CTL_DEL, fd1, NULL);
-// 	FdContext*	context1 = _fdContexts[fd1];
-// 	close(fd1);
-// 	if (context1) {
-// 		delete context1->_data;  // Assuming this deletes the ClientConnection
-// 		delete context1;
-// 		_fdContexts[fd1] = NULL;
-// 	}
-
-// 	int fd2 = client.getCgiHandler().getInputPipeWrite();
-// 	if (fd2 > 0) epoll_ctl(_epollfd, EPOLL_CTL_DEL, fd2, NULL);
-// 	if (fd2 > 0) close(fd2);
-// 	FdContext*	context2 = _fdContexts[fd2];
-// 	if (context2) {
-// 			delete context2;
-// 			_fdContexts[fd2] = NULL;
-// 		}
-
-// 	int fd3 = client.getCgiHandler().getOutputPipeRead();
-// 	if (fd3 > 0) epoll_ctl(_epollfd, EPOLL_CTL_DEL, fd3, NULL);
-// 	if (fd3 > 0) close(fd3);
-// 	FdContext*	context3 = _fdContexts[fd3];
-// 	if (context3) {
-// 			delete context3;
-// 			_fdContexts[fd3] = NULL;
-// 		}
-	
-// }
-	
 
 // Make server ready
-void Server::makeServerReady(const Builder& builder)
+void Server::makeServerReady(const Builder& builder, int signalPipeReadFd)
 {
-    if (createEpoll() || createListeningSockets(builder.getRuntimeBuild()))
+	if (createEpoll() || createListeningSockets(builder.getRuntimeBuild()))
         throw std::runtime_error ("Server could not be built");
+	
+	if (signalPipeReadFd == -1)
+		return ;
+	Console::log(Console::DEBUG, "[SERVER] Adding signal pipe read fd to epoll " + convToStr(signalPipeReadFd));
+	registerFdToEpoll(signalPipeReadFd, EPOLLIN, EPOLL_CTL_ADD, NULL, FdType::FD_SIGNAL_PIPE);
+	_running = true;
 }
+
 
 void    Server::run(int timeout)
 {
-    while (true)
+    while (_running)
     {
         _eventsReady = epoll_wait(_epollfd, _eventQueue, 64, timeout);
 		if (_eventsReady == -1)
@@ -277,6 +238,8 @@ void    Server::run(int timeout)
 			continue ;
 		}
         for (int i = 0; i < _eventsReady; i++)
+		{
 			fdActivityMonitor(i);
+		}
     }
 }

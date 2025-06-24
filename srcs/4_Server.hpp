@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/01 12:02:42 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/23 09:44:22 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 05:44:23 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -38,10 +38,11 @@ class	Server
 			~FdContext();
 		};
 		
-		FdContext*				_fdContexts[MAX_FD];
+		FdContext				_fdContexts[MAX_FD];
 		int						_epollfd;
 		int						_eventsReady;
 		struct epoll_event		_eventQueue[64];
+		bool					_running;
 		int						_error;
 
 		// Init
@@ -50,9 +51,9 @@ class	Server
 
 		// Monitor fd activity
 		void	fdActivityMonitor(int eventQueueIndex);
-		int     createClientConnection(ListeningSocket* ListeningSocket);
-		void	handleClientConnection(FdContext* context, uint32_t events);
-
+		int     createClientConnection(ListeningSocket* listeningSocket);
+		void	handleClientConnection(ClientConnection* clientConnection, int fd, FdType::Type fdType, uint32_t events);
+		static void signalHandler(int signum);
 
 		// Logs
 		void	logIpClient(struct sockaddr_in* addr, int listeningSockFd, int clientfd) const;
@@ -60,14 +61,12 @@ class	Server
 		
 	public:
 		// Handle fds
-		void	registerNewFdToEpoll(int fd, int epollEvent, int epollCtlOperation, void* data, FdType::Type fdType);
-		void	registerFdContext(int fd, void* data, FdType::Type fdType);
-		int 	registerSingleFdToEpoll(int fd, int epollEvent, int epollCtlOperation, FdType::Type fdType);
-		void	deregisterFdFromEpoll(int fd, FdType::Type fdType);
+		int		registerFdToEpoll(int fd, int epollEvent, int epollCtlOperation, void* data, FdType::Type fdType);
+		void	deregisterFdFromEpoll(int fd);
 
 
 		// Make server ready
-		void	makeServerReady(const Builder& builder);
+		void	makeServerReady(const Builder& builder, int signalPipeReadFd);
 		void	run(int timeout = -1);
 };
 

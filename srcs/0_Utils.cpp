@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/17 23:29:17 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/23 07:45:03 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 05:54:48 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -355,6 +355,8 @@ TStr	FdType::toString(FdType::Type type)
 		case FD_LISTENING_SOCKET :	return ("LISTENING SOCKET");
 		case FD_CLIENT_CONNECTION : return ("CLIENT CONNECTION");
 		case FD_CGI_PIPE :			return ("CGI PIPE");
+		case FD_EPOLL :				return ("EPOLL");
+		case FD_SIGNAL_PIPE :		return ("SIGNAL PIPE");
 		default :					return ("UNKNOWN");
 	}
 }
