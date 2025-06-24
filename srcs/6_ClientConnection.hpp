@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:03 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/24 12:21:14 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 15:18:03 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -75,6 +75,8 @@ class ClientConnection
 		TStr						_logBytesSentFilename;
 		int							_logBytesSentFd;
 
+		bool						_timeoutAlreadyTriggered;
+
 		// Events functions
 		void	handleReadingHeaders(int events, FdType::Type fdType);
 		void	handleReadingHeadersInvalid(void);
@@ -110,8 +112,9 @@ class ClientConnection
 
 		void	handleClosingConnection(void);
 
-
 	public:
+		void	handleTimeout(void);
+
 		// Event handler
 		void	handleEvent(int events, FdType::Type fdType);
 

@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/02 13:04:09 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/24 12:32:18 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 16:37:25 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,7 +29,8 @@ ClientConnection::ClientConnection(Server& server, int fd, const ListeningSocket
 			_sendFd(-1),
 			_actualBytesSent(0),
 			_sendFdClear(false),
-			_logBytesSentFd(-1)
+			_logBytesSentFd(-1),
+			_timeoutAlreadyTriggered(false)
 {}
 
 ClientConnection::~ClientConnection(void)
@@ -466,6 +467,22 @@ void	ClientConnection::handleClosingConnection(void)
 	// 	Console::log(Console::DEBUG, oss.str());
 	// }
 }
+
+void	ClientConnection::handleTimeout(void)
+{
+	if (_timeoutAlreadyTriggered)
+		return ;
+	_timeoutAlreadyTriggered = true;
+	kill(_cgiHandler.getCgiPid(), SIGKILL);
+	_server.deregisterFdFromEpoll(_cgiHandler.getOutputPipeRead());
+	_cgiHandler.closeStaticFilesFds();
+	_httpResponse.setCustomErrorPage(504, _httpResolution.getLocationConfig(), HttpResponse::ERROR_REQUEST_RESOLUTION);
+	_clientConnectionState = STATE_READY_TO_SEND;
+	_needEpollToProgress = false;
+}
+
+
+
 // Public
 void	ClientConnection::handleEvent(int events, FdType::Type fdType)
 {

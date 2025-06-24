@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/01 12:02:45 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/24 13:17:49 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 16:31:11 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,7 +16,9 @@
 Server::FdContext::FdContext(void)
 	:	_fd(-1), 
 		_data(NULL),
-		_fdType(FdType::FD_UNDEFINED)
+		_fdType(FdType::FD_UNDEFINED),
+		_creationTime(0),
+		_timeout(-1)
 {}
 
 Server::FdContext::~FdContext(void)
@@ -143,7 +145,6 @@ void	Server::fdActivityMonitor(int eventQueueIndex)
 		// Console::log(Console::ERROR, "Got an event inside a FD that is not in the epoll wait queue");
 		return ;
 	}
-
 	switch (_fdContexts[fd]._fdType)
 	{
 		case	FdType::FD_LISTENING_SOCKET: 	createClientConnection(static_cast<ListeningSocket*>(_fdContexts[fd]._data));			break;
@@ -233,6 +234,9 @@ int	Server::registerFdToEpoll(int fd, int epollEvent, int epollCtlOperation, voi
 		_fdContexts[fd]._fd = fd;
 		_fdContexts[fd]._data = data;
 		_fdContexts[fd]._fdType = fdType;
+		_fdContexts[fd]._creationTime = std::time(NULL);
+		if (fdType == FdType::FD_CLIENT_CONNECTION || fdType == FdType::FD_CGI_PIPE)
+			_fdContexts[fd]._timeout = 3;
 	}
 	return (0);
 }
@@ -253,11 +257,10 @@ void	Server::deregisterFdFromEpoll(int fd)
 		{
 			switch (_fdContexts[fd]._fdType)
 			{	
-				case FdType::FD_LISTENING_SOCKET :	delete static_cast<ListeningSocket*>(_fdContexts[fd]._data);	break ;
-				case FdType::FD_CLIENT_CONNECTION :	delete static_cast<ClientConnection*>(_fdContexts[fd]._data);	break ;
+				case FdType::FD_LISTENING_SOCKET :	delete static_cast<ListeningSocket*>(_fdContexts[fd]._data);	_fdContexts[fd]._data = NULL; break ;
+				case FdType::FD_CLIENT_CONNECTION :	delete static_cast<ClientConnection*>(_fdContexts[fd]._data);	_fdContexts[fd]._data = NULL; break ;
 				default :	break ;
 			}
-			_fdContexts[fd]._data = NULL;
 		}
 		
 		_fdContexts[fd]._fdType = FdType::FD_UNDEFINED;
@@ -311,6 +314,21 @@ void	Server::deregisterFdsInForkChild(void)
 	}
 }
 
+void	Server::monitorTimeouts(void)
+{
+	time_t	now = std::time(NULL);
+
+	for (int fd = 3; fd < MAX_FD; fd++)
+	{
+		if (_fdContexts[fd]._fdType != FdType::FD_CGI_PIPE && _fdContexts[fd]._fdType != FdType::FD_CLIENT_CONNECTION)
+			continue ;
+		if (now -_fdContexts[fd]._creationTime > _fdContexts[fd]._timeout)
+		{
+			static_cast<ClientConnection*>(_fdContexts[fd]._data)->handleTimeout();
+		}
+	}
+}
+
 
 // Make server ready
 void Server::makeServerReady(const Builder& builder, int signalPipeReadFd, int signalPipeWriteFd)
@@ -330,22 +348,28 @@ void Server::makeServerReady(const Builder& builder, int signalPipeReadFd, int s
 		_fdContexts[signalPipeWriteFd]._fdType = FdType::FD_SIGNAL_PIPE;
 	}
 	_running = true;
+	_lastTimeoutCheck = std::time(NULL);
 }
 
 
-void    Server::run(int timeout)
+void    Server::run(void)
 {
     while (_running)
     {
-        _eventsReady = epoll_wait(_epollfd, _eventQueue, 64, timeout);
+        _eventsReady = epoll_wait(_epollfd, _eventQueue, 64, -1);
 		if (_eventsReady == -1)
 		{
 			Console::log(Console::ERROR, strerror(errno));
 			continue ;
 		}
-        for (int i = 0; i < _eventsReady; i++)
-		{
+		for (int i = 0; i < _eventsReady; i++)
 			fdActivityMonitor(i);
+		
+		time_t	now = std::time(NULL);
+		if (now > _lastTimeoutCheck + 120)
+		{
+			_lastTimeoutCheck = now;
+			monitorTimeouts();
 		}
     }
 }

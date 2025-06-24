@@ -1,1 +1,3 @@
-BIIIIDDDDDY
+Content-Type: text/plain
+
+message=lol+lmao

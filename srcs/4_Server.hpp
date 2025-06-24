@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/01 12:02:42 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/24 11:59:11 by qliso            ###   ########.fr       */
+/*   Updated: 2025/06/24 16:23:52 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,6 +33,9 @@ class	Server
 			int				_fd;
 			void*			_data;
 			FdType::Type	_fdType;
+			time_t			_creationTime;
+			time_t			_timeout;
+
 
 			FdContext();
 			~FdContext();
@@ -44,6 +47,7 @@ class	Server
 		struct epoll_event		_eventQueue[64];
 		bool					_running;
 		int						_error;
+		time_t					_lastTimeoutCheck;
 
 		// Init
 		int		createEpoll(void);
@@ -65,9 +69,11 @@ class	Server
 		void	deregisterFdFromEpoll(int fd);
 		void	deregisterFdsInForkChild(void);
 
+		void	monitorTimeouts(void);
+
 		// Make server ready
 		void	makeServerReady(const Builder& builder, int signalPipeReadFd, int signalPipeWriteFd);
-		void	run(int timeout = -1);
+		void	run(void);
 };
 
 #endif
