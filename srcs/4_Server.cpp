@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/01 12:02:45 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/24 16:31:11 by qliso            ###   ########.fr       */
+/*   Updated: 2025/07/29 11:43:48 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -58,7 +58,7 @@ Server::~Server(void)
 			case FdType::FD_LISTENING_SOCKET :	
 				close(fd);
 				_fdContexts[fd]._fd = -1;
-				if (_fdContexts[fd]._data != NULL) delete static_cast<ListeningSocket*>(_fdContexts[fd]._data); _fdContexts[fd]._data = NULL;
+				if (_fdContexts[fd]._data != NULL) { delete static_cast<ListeningSocket*>(_fdContexts[fd]._data); _fdContexts[fd]._data = NULL; }
 				_fdContexts[fd]._data = NULL;
 				_fdContexts[fd]._fdType = FdType::FD_UNDEFINED;
 				break;
@@ -66,7 +66,7 @@ Server::~Server(void)
 			case FdType::FD_CLIENT_CONNECTION :	
 				close(fd); 
 				_fdContexts[fd]._fd = -1;
-				if (_fdContexts[fd]._data != NULL) delete static_cast<ClientConnection*>(_fdContexts[fd]._data); _fdContexts[fd]._data = NULL;
+				if (_fdContexts[fd]._data != NULL) { delete static_cast<ClientConnection*>(_fdContexts[fd]._data); _fdContexts[fd]._data = NULL; }
 				_fdContexts[fd]._data = NULL;
 				_fdContexts[fd]._fdType = FdType::FD_UNDEFINED;
 				break;

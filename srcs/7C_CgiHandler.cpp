@@ -6,7 +6,7 @@
 /*   By: qliso <qliso@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/19 16:19:45 by qliso             #+#    #+#             */
-/*   Updated: 2025/06/24 14:45:11 by qliso            ###   ########.fr       */
+/*   Updated: 2025/07/29 11:44:45 by qliso            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -335,8 +335,8 @@ bool	CgiHandler::flushBuffer(void)
 
 void					CgiHandler::closeStaticFilesFds(void)
 {
-	if (_requestBodyInputFd > 0)	close(_requestBodyInputFd); _requestBodyInputFd = -1;
-	if (_cgiOutputCompleteFd > 0)	close(_cgiOutputCompleteFd); _cgiOutputCompleteFd = -1;
+	if (_requestBodyInputFd > 0)	{ close(_requestBodyInputFd); _requestBodyInputFd = -1; }
+	if (_cgiOutputCompleteFd > 0)	{ close(_cgiOutputCompleteFd); _cgiOutputCompleteFd = -1; }
 }
 
 CgiHandler::CgiState	CgiHandler::getCgiState(void) const { return _cgiState; }
